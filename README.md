@@ -12,11 +12,19 @@ This is a CLI for managing Spot LIMIT orders on Binance Spot Testnet, enabling u
 ### Build and Run
 
 ```bash
-# Build the project
+# Compile the project
+mvn clean compile
+
+# Package the project as JAR
 mvn clean package
 
 # Configure environment variables 
 cp .env.example .env
+
+# Run tests
+mvn test
+mvn test -X # Debug mode
+mvn test -Dtest=OrderTest # Specific test class
 
 # Run
 java -jar target/order-manager-1.0.0.jar --help

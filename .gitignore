@@ -18,6 +18,7 @@ buildNumber.properties
 .env
 .order-manager/
 *.log
+logs/
 orders.json
 
 # Build artifacts
