@@ -2,6 +2,8 @@ package com.ordermanager.config;
 
 import com.ordermanager.exception.ConfigurationException;
 
+import io.github.cdimascio.dotenv.Dotenv;
+
 /**
  * Application configuration loaded from environment variables.
  *
@@ -15,7 +17,7 @@ import com.ordermanager.exception.ConfigurationException;
  * (default: 10000)
  */
 public class AppConfig {
-
+    private static final Dotenv DOTENV = Dotenv.configure().ignoreIfMissing().load();
     private final String apiKey;
     private final String apiSecret;
     private final String baseUrl;
@@ -41,7 +43,10 @@ public class AppConfig {
     }
 
     private static String getRequiredEnv(String name) {
-        String value = System.getenv(name);
+        String value = firstNonBlank(
+                System.getenv(name),
+                DOTENV.get(name));
+
         if (value == null || value.trim().isEmpty()) {
             throw new ConfigurationException("Required environment variable not set: " + name);
         }
@@ -49,8 +54,19 @@ public class AppConfig {
     }
 
     private static String getEnv(String name, String defaultValue) {
-        String value = System.getenv(name);
+        String value = firstNonBlank(
+                System.getenv(name),
+                DOTENV.get(name));
         return (value != null && !value.trim().isEmpty()) ? value.trim() : defaultValue;
+    }
+
+    private static String firstNonBlank(String... candidates) {
+        for (String c : candidates) {
+            if (c != null && !c.trim().isEmpty()) {
+                return c.trim();
+            }
+        }
+        return null;
     }
 
     public String getApiKey() {
