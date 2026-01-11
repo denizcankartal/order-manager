@@ -23,7 +23,7 @@ import java.util.Objects;
 public class Order {
 
     /**
-     * Client-generated order ID (we generate this)
+     * Client-generated order ID
      */
     @JsonProperty("clientOrderId")
     private String clientOrderId;
@@ -43,9 +43,6 @@ public class Order {
     @JsonProperty("side")
     private OrderSide side;
 
-    @JsonProperty("type")
-    private OrderType type;
-
     @JsonProperty("price")
     private BigDecimal price;
 
@@ -62,19 +59,10 @@ public class Order {
     private BigDecimal executedQty;
 
     /**
-     * Cumulative quote quantity (total USDT value filled)
-     */
-    @JsonProperty("cummulativeQuoteQty")
-    private BigDecimal cummulativeQuoteQty;
-
-    /**
      * Current order status
      */
     @JsonProperty("status")
     private OrderStatus status;
-
-    @JsonProperty("timeInForce")
-    private TimeInForce timeInForce;
 
     /**
      * Order creation timestamp (milliseconds since epoch)
@@ -97,16 +85,14 @@ public class Order {
     }
 
     public Order(String clientOrderId, String symbol, OrderSide side,
-            OrderType type, BigDecimal price, BigDecimal origQty) {
+            BigDecimal price, BigDecimal origQty) {
         this.clientOrderId = clientOrderId;
         this.symbol = symbol;
         this.side = side;
-        this.type = type;
         this.price = price;
         this.origQty = origQty;
         this.executedQty = BigDecimal.ZERO;
         this.status = OrderStatus.PENDING_NEW;
-        this.timeInForce = TimeInForce.GTC;
         this.updateTime = System.currentTimeMillis();
     }
 
@@ -121,13 +107,10 @@ public class Order {
         private Long orderId;
         private String symbol;
         private OrderSide side;
-        private OrderType type;
         private BigDecimal price;
         private BigDecimal origQty;
         private BigDecimal executedQty;
-        private BigDecimal cummulativeQuoteQty;
         private OrderStatus status;
-        private TimeInForce timeInForce;
         private Long time;
         private long updateTime;
 
@@ -151,11 +134,6 @@ public class Order {
             return this;
         }
 
-        public Builder type(OrderType type) {
-            this.type = type;
-            return this;
-        }
-
         public Builder price(BigDecimal price) {
             this.price = price;
             return this;
@@ -171,18 +149,8 @@ public class Order {
             return this;
         }
 
-        public Builder cummulativeQuoteQty(BigDecimal cummulativeQuoteQty) {
-            this.cummulativeQuoteQty = cummulativeQuoteQty;
-            return this;
-        }
-
         public Builder status(OrderStatus status) {
             this.status = status;
-            return this;
-        }
-
-        public Builder timeInForce(TimeInForce timeInForce) {
-            this.timeInForce = timeInForce;
             return this;
         }
 
@@ -205,13 +173,10 @@ public class Order {
             order.orderId = this.orderId;
             order.symbol = this.symbol;
             order.side = this.side;
-            order.type = this.type != null ? this.type : OrderType.LIMIT;
             order.price = this.price;
             order.origQty = this.origQty;
             order.executedQty = this.executedQty != null ? this.executedQty : BigDecimal.ZERO;
-            order.cummulativeQuoteQty = this.cummulativeQuoteQty;
             order.status = this.status != null ? this.status : OrderStatus.PENDING_NEW;
-            order.timeInForce = this.timeInForce != null ? this.timeInForce : TimeInForce.GTC;
             order.time = this.time;
             order.updateTime = this.updateTime != 0 ? this.updateTime : System.currentTimeMillis();
             return order;
@@ -250,14 +215,6 @@ public class Order {
         this.side = side;
     }
 
-    public OrderType getType() {
-        return type;
-    }
-
-    public void setType(OrderType type) {
-        this.type = type;
-    }
-
     public BigDecimal getPrice() {
         return price;
     }
@@ -282,28 +239,12 @@ public class Order {
         this.executedQty = executedQty;
     }
 
-    public BigDecimal getCummulativeQuoteQty() {
-        return cummulativeQuoteQty;
-    }
-
-    public void setCummulativeQuoteQty(BigDecimal cummulativeQuoteQty) {
-        this.cummulativeQuoteQty = cummulativeQuoteQty;
-    }
-
     public OrderStatus getStatus() {
         return status;
     }
 
     public void setStatus(OrderStatus status) {
         this.status = status;
-    }
-
-    public TimeInForce getTimeInForce() {
-        return timeInForce;
-    }
-
-    public void setTimeInForce(TimeInForce timeInForce) {
-        this.timeInForce = timeInForce;
     }
 
     public Long getTime() {
@@ -401,7 +342,6 @@ public class Order {
                 ", orderId=" + orderId +
                 ", symbol='" + symbol + '\'' +
                 ", side=" + side +
-                ", type=" + type +
                 ", price=" + price +
                 ", origQty=" + origQty +
                 ", executedQty=" + executedQty +
