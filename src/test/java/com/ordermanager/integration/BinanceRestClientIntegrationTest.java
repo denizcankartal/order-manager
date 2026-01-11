@@ -2,6 +2,7 @@ package com.ordermanager.integration;
 
 import com.ordermanager.client.BinanceRestClient;
 import com.ordermanager.config.AppConfig;
+import com.ordermanager.model.SymbolInfo;
 import com.ordermanager.model.dto.AccountResponse;
 import com.ordermanager.model.dto.ExchangeInfoResponse;
 import com.ordermanager.model.dto.ServerTimeResponse;
@@ -105,7 +106,7 @@ public class BinanceRestClientIntegrationTest {
         System.out.println("Total Symbols: " + response.getSymbols().size());
 
         // Find BTCUSDT symbol (should always exist on testnet)
-        ExchangeInfoResponse.SymbolInfo btcusdt = response.getSymbols().stream()
+        SymbolInfo btcusdt = response.getSymbols().stream()
                 .filter(s -> "BTCUSDT".equals(s.getSymbol()))
                 .findFirst()
                 .orElse(null);

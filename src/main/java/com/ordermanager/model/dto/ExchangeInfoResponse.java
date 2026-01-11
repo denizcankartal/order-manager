@@ -2,30 +2,15 @@ package com.ordermanager.model.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.ordermanager.model.SymbolInfo;
 
 import java.util.List;
 
 /**
- * DTO for exchange information response.
- * 
  * Endpoint: GET /api/v3/exchangeInfo
- * 
- * Example response:
- * {
- * "timezone": "UTC",
- * "serverTime": 123456789999,
- * "rateLimits": [...],
- * "exchangeFilters": [],
- * "symbols": [
- * {
- * "symbol": "ETHBTC",
- * "status": "TRADING",
- * "baseAsset": "BTC",
- * "quoteAsset": "USDT",
- * "filters": [...]
- * }
- * ]
- * }
+ *
+ * *
+ * https://developers.binance.com/docs/binance-spot-api-docs/rest-api/general-endpoints#exchange-information
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ExchangeInfoResponse {
@@ -90,69 +75,5 @@ public class ExchangeInfoResponse {
                 ", serverTime=" + serverTime +
                 ", symbols=" + (symbols != null ? symbols.size() + " symbols" : "null") +
                 '}';
-    }
-
-    /**
-     * Minimal symbol information.
-     * Full filter details will be added in Phase 3.
-     */
-    public static class SymbolInfo {
-
-        @JsonProperty("symbol")
-        private String symbol;
-
-        @JsonProperty("status")
-        private String status;
-
-        @JsonProperty("baseAsset")
-        private String baseAsset;
-
-        @JsonProperty("quoteAsset")
-        private String quoteAsset;
-
-        public SymbolInfo() {
-        }
-
-        public String getSymbol() {
-            return symbol;
-        }
-
-        public void setSymbol(String symbol) {
-            this.symbol = symbol;
-        }
-
-        public String getStatus() {
-            return status;
-        }
-
-        public void setStatus(String status) {
-            this.status = status;
-        }
-
-        public String getBaseAsset() {
-            return baseAsset;
-        }
-
-        public void setBaseAsset(String baseAsset) {
-            this.baseAsset = baseAsset;
-        }
-
-        public String getQuoteAsset() {
-            return quoteAsset;
-        }
-
-        public void setQuoteAsset(String quoteAsset) {
-            this.quoteAsset = quoteAsset;
-        }
-
-        @Override
-        public String toString() {
-            return "SymbolInfo{" +
-                    "symbol='" + symbol + '\'' +
-                    ", status='" + status + '\'' +
-                    ", baseAsset='" + baseAsset + '\'' +
-                    ", quoteAsset='" + quoteAsset + '\'' +
-                    '}';
-        }
     }
 }
