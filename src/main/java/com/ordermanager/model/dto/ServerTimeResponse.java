@@ -4,7 +4,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * DTO for Binance server time response.
- *
+ * 
+ * https://developers.binance.com/docs/binance-spot-api-docs/rest-api/general-endpoints
+ * 
  * Example response from GET /api/v3/time:
  * {
  * "serverTime": 1499827319559

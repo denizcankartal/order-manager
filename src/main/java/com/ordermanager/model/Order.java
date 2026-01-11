@@ -10,7 +10,9 @@ import java.util.Objects;
 
 /**
  * Order entity representing a trading order on Binance.
- *
+ * 
+ * https://developers.binance.com/docs/binance-spot-api-docs/rest-api/trading-endpoints
+ * 
  * This model is used for:
  * - Local state management (in-memory cache)
  * - Persistent storage (JSON serialization)

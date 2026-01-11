@@ -8,6 +8,9 @@ import java.math.BigDecimal;
 
 /**
  * Account balance for a specific asset.
+ * 
+ * https://developers.binance.com/docs/binance-spot-api-docs/rest-api/account-endpoints
+ * 
  * asset: Asset symbol (e.g., "BTC", "USDT")
  * free: Free balance available for trading
  * locked: Locked balance reserved for open orders
