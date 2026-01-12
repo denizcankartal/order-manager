@@ -1,7 +1,6 @@
 package com.ordermanager.cli;
 
 import picocli.CommandLine.Command;
-import picocli.CommandLine.Option;
 import picocli.CommandLine.ParentCommand;
 
 import java.time.Instant;
