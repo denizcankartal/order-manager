@@ -230,8 +230,6 @@ class ExchangeInfoServiceTest {
         SymbolInfo info = new SymbolInfo();
         info.setSymbol(symbol);
         info.setStatus(status);
-        info.setBaseAsset(symbol.substring(0, 3));
-        info.setQuoteAsset(symbol.substring(3));
 
         // Add a sample price filter
         PriceFilter priceFilter = new PriceFilter(
