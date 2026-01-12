@@ -5,7 +5,6 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.Objects;
 
 /**
@@ -46,21 +45,12 @@ public class Order {
     @JsonProperty("price")
     private BigDecimal price;
 
-    /**
-     * Original order quantity
-     */
     @JsonProperty("origQty")
     private BigDecimal origQty;
 
-    /**
-     * Executed quantity
-     */
     @JsonProperty("executedQty")
     private BigDecimal executedQty;
 
-    /**
-     * Current order status
-     */
     @JsonProperty("status")
     private OrderStatus status;
 
@@ -76,16 +66,10 @@ public class Order {
     @JsonProperty("updateTime")
     private long updateTime;
 
-    // Constructors
-
-    /**
-     * Default constructor for Jackson deserialization
-     */
     public Order() {
     }
 
-    public Order(String clientOrderId, String symbol, OrderSide side,
-            BigDecimal price, BigDecimal origQty) {
+    public Order(String clientOrderId, String symbol, OrderSide side, BigDecimal price, BigDecimal origQty) {
         this.clientOrderId = clientOrderId;
         this.symbol = symbol;
         this.side = side;
@@ -94,93 +78,6 @@ public class Order {
         this.executedQty = BigDecimal.ZERO;
         this.status = OrderStatus.PENDING_NEW;
         this.updateTime = System.currentTimeMillis();
-    }
-
-    // Builder Pattern
-
-    public static Builder builder() {
-        return new Builder();
-    }
-
-    public static class Builder {
-        private String clientOrderId;
-        private Long orderId;
-        private String symbol;
-        private OrderSide side;
-        private BigDecimal price;
-        private BigDecimal origQty;
-        private BigDecimal executedQty;
-        private OrderStatus status;
-        private Long time;
-        private long updateTime;
-
-        public Builder clientOrderId(String clientOrderId) {
-            this.clientOrderId = clientOrderId;
-            return this;
-        }
-
-        public Builder orderId(Long orderId) {
-            this.orderId = orderId;
-            return this;
-        }
-
-        public Builder symbol(String symbol) {
-            this.symbol = symbol;
-            return this;
-        }
-
-        public Builder side(OrderSide side) {
-            this.side = side;
-            return this;
-        }
-
-        public Builder price(BigDecimal price) {
-            this.price = price;
-            return this;
-        }
-
-        public Builder origQty(BigDecimal origQty) {
-            this.origQty = origQty;
-            return this;
-        }
-
-        public Builder executedQty(BigDecimal executedQty) {
-            this.executedQty = executedQty;
-            return this;
-        }
-
-        public Builder status(OrderStatus status) {
-            this.status = status;
-            return this;
-        }
-
-        public Builder time(Long time) {
-            this.time = time;
-            return this;
-        }
-
-        public Builder updateTime(long updateTime) {
-            this.updateTime = updateTime;
-            return this;
-        }
-
-        /**
-         * Build the Order instance with defaults for unset fields
-         */
-        public Order build() {
-            Order order = new Order();
-            order.clientOrderId = this.clientOrderId;
-            order.orderId = this.orderId;
-            order.symbol = this.symbol;
-            order.side = this.side;
-            order.price = this.price;
-            order.origQty = this.origQty;
-            order.executedQty = this.executedQty != null ? this.executedQty : BigDecimal.ZERO;
-            order.status = this.status != null ? this.status : OrderStatus.PENDING_NEW;
-            order.time = this.time;
-            order.updateTime = this.updateTime != 0 ? this.updateTime : System.currentTimeMillis();
-            return order;
-        }
     }
 
     public String getClientOrderId() {
@@ -275,46 +172,6 @@ public class Order {
      */
     public boolean isTerminal() {
         return status != null && status.isTerminal();
-    }
-
-    /**
-     * Get remaining quantity to be filled
-     */
-    public BigDecimal getRemainingQty() {
-        if (origQty == null || executedQty == null) {
-            return BigDecimal.ZERO;
-        }
-        return origQty.subtract(executedQty);
-    }
-
-    /**
-     * Get fill percentage (0-100)
-     */
-    public BigDecimal getFillPercentage() {
-        if (origQty == null || origQty.compareTo(BigDecimal.ZERO) == 0) {
-            return BigDecimal.ZERO;
-        }
-        if (executedQty == null) {
-            return BigDecimal.ZERO;
-        }
-        return executedQty.divide(origQty, 4, RoundingMode.HALF_UP)
-                .multiply(new BigDecimal("100"));
-    }
-
-    /**
-     * Check if order is partially filled
-     */
-    public boolean isPartiallyFilled() {
-        return executedQty != null && executedQty.compareTo(BigDecimal.ZERO) > 0
-                && origQty != null && executedQty.compareTo(origQty) < 0;
-    }
-
-    /**
-     * Check if order is fully filled
-     */
-    public boolean isFilled() {
-        return status == OrderStatus.FILLED ||
-                (executedQty != null && origQty != null && executedQty.compareTo(origQty) == 0);
     }
 
     /**
