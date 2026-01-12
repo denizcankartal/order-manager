@@ -1,8 +1,5 @@
 package com.ordermanager.model;
 
-/**
- * Order status representing the lifecycle of an order.
- */
 public enum OrderStatus {
     PENDING_NEW, // Order created locally, not yet sent to exchange
     NEW, // Order accepted by the exchange

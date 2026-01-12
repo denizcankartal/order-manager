@@ -12,7 +12,8 @@ import java.util.List;
 /**
  * Symbol information from GET /api/v3/exchangeInfo?symbol=BTCUSDT.
  *
- * Contains trading rules and filters for a specific trading symbol.
+ * Contains trading rules and filters for a specific trading symbol. We need
+ * this for filters
  *
  * https://developers.binance.com/docs/binance-spot-api-docs/rest-api/general-endpoints#exchange-information
  */
@@ -24,12 +25,6 @@ public class SymbolInfo {
 
     @JsonProperty("status")
     private String status;
-
-    @JsonProperty("baseAsset")
-    private String baseAsset;
-
-    @JsonProperty("quoteAsset")
-    private String quoteAsset;
 
     @JsonProperty("filters")
     private List<SymbolFilter> filters;
@@ -51,22 +46,6 @@ public class SymbolInfo {
 
     public void setStatus(String status) {
         this.status = status;
-    }
-
-    public String getBaseAsset() {
-        return baseAsset;
-    }
-
-    public void setBaseAsset(String baseAsset) {
-        this.baseAsset = baseAsset;
-    }
-
-    public String getQuoteAsset() {
-        return quoteAsset;
-    }
-
-    public void setQuoteAsset(String quoteAsset) {
-        this.quoteAsset = quoteAsset;
     }
 
     public List<SymbolFilter> getFilters() {
@@ -139,8 +118,6 @@ public class SymbolInfo {
         return "SymbolInfo{" +
                 "symbol='" + symbol + '\'' +
                 ", status='" + status + '\'' +
-                ", baseAsset='" + baseAsset + '\'' +
-                ", quoteAsset='" + quoteAsset + '\'' +
                 ", filters=" + (filters != null ? filters.size() : 0) + " filters" +
                 '}';
     }

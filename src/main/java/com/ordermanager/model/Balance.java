@@ -28,9 +28,6 @@ public class Balance {
     @JsonProperty("locked")
     private BigDecimal locked;
 
-    /**
-     * Default constructor for Jackson deserialization
-     */
     public Balance() {
     }
 
@@ -73,9 +70,6 @@ public class Balance {
         return freeAmount.add(lockedAmount);
     }
 
-    /**
-     * Check if this balance has any funds (free or locked)
-     */
     public boolean hasBalance() {
         return getTotal().compareTo(BigDecimal.ZERO) > 0;
     }

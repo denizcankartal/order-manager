@@ -21,21 +21,12 @@ import java.util.Objects;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class Order {
 
-    /**
-     * Client-generated order ID
-     */
     @JsonProperty("clientOrderId")
     private String clientOrderId;
 
-    /**
-     * Exchange-generated order ID
-     */
     @JsonProperty("orderId")
     private Long orderId;
 
-    /**
-     * Trading pair symbol (e.g., "BTCUSDT")
-     */
     @JsonProperty("symbol")
     private String symbol;
 

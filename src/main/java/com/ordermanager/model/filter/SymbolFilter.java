@@ -7,13 +7,12 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 /**
  * Base class for Binance symbol filters.
  *
- * Only the filters needed for order validation are mapped (PRICE_FILTER, LOT_SIZE, MIN_NOTIONAL).
- * Other filter types from Binance (ICEBERG_PARTS, MARKET_LOT_SIZE, etc.) are ignored.
+ * Only the filters needed for order validation are mapped (PRICE_FILTER,
+ * LOT_SIZE, MIN_NOTIONAL).
  *
  * https://developers.binance.com/docs/binance-spot-api-docs/filters#symbol-filters
  */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "filterType",
-              defaultImpl = UnknownFilter.class)
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "filterType", defaultImpl = UnknownFilter.class)
 @JsonSubTypes({
         @JsonSubTypes.Type(value = PriceFilter.class, name = "PRICE_FILTER"),
         @JsonSubTypes.Type(value = LotSizeFilter.class, name = "LOT_SIZE"),
