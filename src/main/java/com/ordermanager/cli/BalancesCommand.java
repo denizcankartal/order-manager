@@ -24,7 +24,7 @@ public class BalancesCommand implements Callable<Integer> {
             System.out.println("---------------------------------------------------------------------");
 
             for (BalanceInfo b : balances) {
-                System.out.printf("%-10s %-20s %-20sn",
+                System.out.printf("%-10s %-20s %-20s%n",
                         b.getAsset(),
                         b.getFree(),
                         b.getLocked());

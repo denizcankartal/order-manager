@@ -22,18 +22,11 @@ public class CancelOrderCommand implements Callable<Integer> {
             parent.configureLogging();
             Order order = parent.getOrderService().cancelOrder(orderId, parent.getSymbol());
 
-            System.out.printf(
-                    "Order canceled: id=%s clientId=%s symbol=%s status=%s executedQty=%s%n",
-                    order.getOrderId(),
-                    order.getClientOrderId(),
-                    order.getSymbol(),
-                    order.getStatus(),
-                    order.getExecutedQty());
-
-            System.out.printf("{\"orderId\": %s, \"clientOrderId\": \"%s\", \"status\": \"%s\"}%n",
-                    order.getOrderId(),
-                    order.getClientOrderId(),
-                    order.getStatus());
+            System.out.println("{");
+            System.out.printf("  \"orderId\": %d,%n", order.getOrderId());
+            System.out.printf("  \"clientOrderId\": \"%s\",%n", order.getClientOrderId());
+            System.out.printf("  \"status\": \"%s\",%n", order.getStatus());
+            System.out.println("}");
 
             return 0;
 

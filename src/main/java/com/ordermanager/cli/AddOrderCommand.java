@@ -55,11 +55,11 @@ public class AddOrderCommand implements Callable<Integer> {
                     order.getPrice(),
                     order.getStatus());
 
-            System.out.printf("{\"orderId\": %s, \"clientOrderId\": \"%s\", \"status\": \"%s\"}%n",
-                    order.getOrderId(),
-                    order.getClientOrderId(),
-                    order.getStatus());
-
+            System.out.println("{");
+            System.out.printf("  \"orderId\": %d,%n", order.getOrderId());
+            System.out.printf("  \"clientOrderId\": \"%s\",%n", order.getClientOrderId());
+            System.out.printf("  \"status\": \"%s\",%n", order.getStatus());
+            System.out.println("}");
             return 0;
 
         } catch (Exception e) {
