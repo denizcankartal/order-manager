@@ -56,7 +56,7 @@ public class OrderService {
      * @param userProvidedClientId Optional client order ID (null for auto-generate)
      * @return Order with exchange orderId and status
      */
-    public Order placeOrder(String symbol, OrderSide side, BigDecimal price,
+    public PlaceOrderResult placeOrder(String symbol, OrderSide side, BigDecimal price,
             BigDecimal quantity, String userProvidedClientId) {
 
         String clientOrderId = (userProvidedClientId != null && !userProvidedClientId.isEmpty())
@@ -67,7 +67,16 @@ public class OrderService {
                 side, quantity, symbol, price, clientOrderId);
 
         SymbolInfo symbolInfo = exchangeInfoService.getSymbolInfo(symbol);
-        OrderValidator.OrderValidationResult validation = OrderValidator.validate(symbol, quantity, price, symbolInfo);
+        BigDecimal referencePrice = null;
+        try {
+            referencePrice = exchangeInfoService.getCurrentPrice(symbol);
+        } catch (Exception e) {
+            logger.warn("Could not fetch reference price for {}: {}. Skipping PERCENT_PRICE_BY_SIDE validation.",
+                    symbol, e.getMessage());
+        }
+
+        OrderValidator.OrderValidationResult validation = OrderValidator.validate(
+                symbol, side, quantity, price, symbolInfo, referencePrice);
 
         if (!validation.isValid()) {
             String errors = String.join("; ", validation.getErrors());
@@ -120,7 +129,7 @@ public class OrderService {
             logger.info("Order placed successfully: orderId={}, status={}",
                     order.getOrderId(), order.getStatus());
 
-            return order;
+            return new PlaceOrderResult(order, validation.getWarnings());
 
         } catch (ApiException e) {
             logger.error("Failed to place order: symbol={}, side={}, price={}, qty={}, error={}",

@@ -3,6 +3,7 @@ package com.ordermanager.validator;
 import com.ordermanager.client.BinanceRestClient;
 import com.ordermanager.config.AppConfig;
 import com.ordermanager.model.SymbolInfo;
+import com.ordermanager.model.OrderSide;
 import com.ordermanager.service.ExchangeInfoService;
 import org.junit.jupiter.api.*;
 import org.slf4j.Logger;
@@ -75,9 +76,11 @@ class OrderValidatorIntegrationTest {
         // Valid order: 0.001 BTC @ $50000
         OrderValidator.OrderValidationResult result = OrderValidator.validate(
                 "BTCUSDT",
+                OrderSide.BUY,
                 new BigDecimal("0.001"),
                 new BigDecimal("50000.00"),
-                btcusdt);
+                btcusdt,
+                new BigDecimal("50000.00"));
 
         assertTrue(result.isValid(), "Order should be valid");
         assertEquals(new BigDecimal("0.001"), result.getAdjustedQuantity());
@@ -95,9 +98,11 @@ class OrderValidatorIntegrationTest {
         // Invalid precision: $50000.123 (should round to $50000.12 with tickSize 0.01)
         OrderValidator.OrderValidationResult result = OrderValidator.validate(
                 "BTCUSDT",
+                OrderSide.BUY,
                 new BigDecimal("0.001"),
                 new BigDecimal("50000.123"),
-                btcusdt);
+                btcusdt,
+                new BigDecimal("50000.00"));
 
         assertTrue(result.isValid(), "Order should be valid after adjustment");
         assertTrue(result.hasWarnings(), "Should have adjustment warning");
@@ -117,9 +122,11 @@ class OrderValidatorIntegrationTest {
         // Invalid precision: 0.0012345 BTC (should round down based on stepSize)
         OrderValidator.OrderValidationResult result = OrderValidator.validate(
                 "BTCUSDT",
+                OrderSide.BUY,
                 new BigDecimal("0.0012345"),
                 new BigDecimal("50000.00"),
-                btcusdt);
+                btcusdt,
+                new BigDecimal("50000.00"));
 
         assertTrue(result.isValid(), "Order should be valid after adjustment");
         assertTrue(result.hasWarnings(), "Should have adjustment warning");
@@ -139,9 +146,11 @@ class OrderValidatorIntegrationTest {
         // Very small order that fails MIN_NOTIONAL (MIN_NOTIONAL is $5)
         OrderValidator.OrderValidationResult result = OrderValidator.validate(
                 "BTCUSDT",
+                OrderSide.BUY,
                 new BigDecimal("0.00005"), // $2.50 at $50000 (below $5 minimum)
                 new BigDecimal("50000.00"),
-                btcusdt);
+                btcusdt,
+                new BigDecimal("50000.00"));
 
         assertFalse(result.isValid(), "Order should fail MIN_NOTIONAL");
         assertFalse(result.getErrors().isEmpty(), "Should have errors");
@@ -162,9 +171,11 @@ class OrderValidatorIntegrationTest {
         // Quantity below LOT_SIZE minimum
         OrderValidator.OrderValidationResult result = OrderValidator.validate(
                 "BTCUSDT",
+                OrderSide.BUY,
                 new BigDecimal("0.000001"), // Too small
                 new BigDecimal("50000.00"),
-                btcusdt);
+                btcusdt,
+                new BigDecimal("50000.00"));
 
         assertFalse(result.isValid(), "Order should fail LOT_SIZE");
         assertFalse(result.getErrors().isEmpty(), "Should have errors");
@@ -187,9 +198,11 @@ class OrderValidatorIntegrationTest {
         // Valid order: 0.01 ETH @ $3000
         OrderValidator.OrderValidationResult result = OrderValidator.validate(
                 "ETHUSDT",
+                OrderSide.BUY,
                 new BigDecimal("0.01"),
                 new BigDecimal("3000.00"),
-                ethusdt);
+                ethusdt,
+                new BigDecimal("3000.00"));
 
         assertTrue(result.isValid(), "Order should be valid");
         logger.info("ETHUSDT validation result: {}", result);
@@ -203,9 +216,11 @@ class OrderValidatorIntegrationTest {
         // Invalid precision for both price and quantity
         OrderValidator.OrderValidationResult result = OrderValidator.validate(
                 "ETHUSDT",
+                OrderSide.BUY,
                 new BigDecimal("0.012345"), // Invalid precision
                 new BigDecimal("3000.567"), // Invalid precision
-                ethusdt);
+                ethusdt,
+                new BigDecimal("3000.00"));
 
         if (result.isValid()) {
             assertTrue(result.hasWarnings(), "Should have adjustment warnings");
@@ -240,9 +255,11 @@ class OrderValidatorIntegrationTest {
 
                 OrderValidator.OrderValidationResult result = OrderValidator.validate(
                         symbol,
+                        OrderSide.BUY,
                         new BigDecimal("1.0"),
                         new BigDecimal("1.0"),
-                        info);
+                        info,
+                        new BigDecimal("1.0"));
 
                 assertFalse(result.isValid(), "Non-trading symbol should fail validation");
                 assertTrue(result.getErrors().get(0).contains("not tradable"));

@@ -32,7 +32,13 @@ public class AddOrderCommand implements Callable<Integer> {
     @Override
     public Integer call() {
         try {
-            Order order = parent.getOrderService().placeOrder(symbol, side, price, quantity, clientOrderId);
+            var result = parent.getOrderService().placeOrder(symbol, side, price, quantity, clientOrderId);
+            Order order = result.getOrder();
+
+            if (!result.getWarnings().isEmpty()) {
+                System.out.println("Warnings:");
+                result.getWarnings().forEach(w -> System.out.println(" - " + w));
+            }
 
             System.out.printf(
                     "Order placed: id=%s clientId=%s side=%s %s %s @ %s status=%s%n",

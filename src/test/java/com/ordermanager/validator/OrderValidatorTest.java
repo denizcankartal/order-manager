@@ -1,9 +1,11 @@
 package com.ordermanager.validator;
 
 import com.ordermanager.model.SymbolInfo;
+import com.ordermanager.model.OrderSide;
 import com.ordermanager.model.filter.LotSizeFilter;
 import com.ordermanager.model.filter.MinNotionalFilter;
 import com.ordermanager.model.filter.PriceFilter;
+import com.ordermanager.model.filter.PercentPriceBySideFilter;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -34,13 +36,15 @@ class OrderValidatorTest {
                                 new BigDecimal("0.01") // tickSize
                 );
 
-                SymbolInfo symbolInfo = createSymbolInfo("BTCUSDT", "TRADING", filter, null, null);
+                SymbolInfo symbolInfo = createSymbolInfo("BTCUSDT", "TRADING", filter, null, null, null);
 
                 OrderValidator.OrderValidationResult result = OrderValidator.validate(
                                 "BTCUSDT",
+                                OrderSide.BUY,
                                 new BigDecimal("0.001"),
                                 new BigDecimal("50000.00"), // Already valid
-                                symbolInfo);
+                                symbolInfo,
+                                new BigDecimal("50000.00"));
 
                 assertTrue(result.isValid());
                 assertEquals(new BigDecimal("50000.00"), result.getAdjustedPrice());
@@ -55,13 +59,15 @@ class OrderValidatorTest {
                                 new BigDecimal("1000000"),
                                 new BigDecimal("0.01"));
 
-                SymbolInfo symbolInfo = createSymbolInfo("BTCUSDT", "TRADING", filter, null, null);
+                SymbolInfo symbolInfo = createSymbolInfo("BTCUSDT", "TRADING", filter, null, null, null);
 
                 OrderValidator.OrderValidationResult result = OrderValidator.validate(
                                 "BTCUSDT",
+                                OrderSide.BUY,
                                 new BigDecimal("0.001"),
                                 new BigDecimal("50000.123"), // Invalid precision
-                                symbolInfo);
+                                symbolInfo,
+                                new BigDecimal("50000.00"));
 
                 assertTrue(result.isValid());
                 assertEquals(new BigDecimal("50000.12"), result.getAdjustedPrice());
@@ -76,13 +82,15 @@ class OrderValidatorTest {
                                 new BigDecimal("1000000"),
                                 new BigDecimal("0.01"));
 
-                SymbolInfo symbolInfo = createSymbolInfo("BTCUSDT", "TRADING", filter, null, null);
+                SymbolInfo symbolInfo = createSymbolInfo("BTCUSDT", "TRADING", filter, null, null, null);
 
                 OrderValidator.OrderValidationResult result = OrderValidator.validate(
                                 "BTCUSDT",
+                                OrderSide.BUY,
                                 new BigDecimal("0.001"),
                                 new BigDecimal("0.001"), // Below minimum
-                                symbolInfo);
+                                symbolInfo,
+                                new BigDecimal("50000.00"));
 
                 assertFalse(result.isValid());
                 assertTrue(result.getErrors().get(0).contains("below minimum"));
@@ -95,13 +103,15 @@ class OrderValidatorTest {
                                 new BigDecimal("1000000"),
                                 new BigDecimal("0.01"));
 
-                SymbolInfo symbolInfo = createSymbolInfo("BTCUSDT", "TRADING", filter, null, null);
+                SymbolInfo symbolInfo = createSymbolInfo("BTCUSDT", "TRADING", filter, null, null, null);
 
                 OrderValidator.OrderValidationResult result = OrderValidator.validate(
                                 "BTCUSDT",
+                                OrderSide.BUY,
                                 new BigDecimal("0.001"),
                                 new BigDecimal("2000000"), // Above maximum
-                                symbolInfo);
+                                symbolInfo,
+                                new BigDecimal("50000.00"));
 
                 assertFalse(result.isValid());
                 assertTrue(result.getErrors().get(0).contains("exceeds maximum"));
@@ -118,13 +128,15 @@ class OrderValidatorTest {
                                 new BigDecimal("0.00001") // stepSize
                 );
 
-                SymbolInfo symbolInfo = createSymbolInfo("BTCUSDT", "TRADING", null, filter, null);
+                SymbolInfo symbolInfo = createSymbolInfo("BTCUSDT", "TRADING", null, filter, null, null);
 
                 OrderValidator.OrderValidationResult result = OrderValidator.validate(
                                 "BTCUSDT",
+                                OrderSide.BUY,
                                 new BigDecimal("0.001"), // Already valid
                                 new BigDecimal("50000"),
-                                symbolInfo);
+                                symbolInfo,
+                                new BigDecimal("50000"));
 
                 assertTrue(result.isValid());
                 assertEquals(new BigDecimal("0.001"), result.getAdjustedQuantity());
@@ -139,13 +151,15 @@ class OrderValidatorTest {
                                 new BigDecimal("9000"),
                                 new BigDecimal("0.00001"));
 
-                SymbolInfo symbolInfo = createSymbolInfo("BTCUSDT", "TRADING", null, filter, null);
+                SymbolInfo symbolInfo = createSymbolInfo("BTCUSDT", "TRADING", null, filter, null, null);
 
                 OrderValidator.OrderValidationResult result = OrderValidator.validate(
                                 "BTCUSDT",
+                                OrderSide.BUY,
                                 new BigDecimal("0.0012345"), // Invalid precision
                                 new BigDecimal("50000"),
-                                symbolInfo);
+                                symbolInfo,
+                                new BigDecimal("50000"));
 
                 assertTrue(result.isValid());
                 assertEquals(new BigDecimal("0.00123"), result.getAdjustedQuantity());
@@ -160,13 +174,15 @@ class OrderValidatorTest {
                                 new BigDecimal("9000"),
                                 new BigDecimal("0.00001"));
 
-                SymbolInfo symbolInfo = createSymbolInfo("BTCUSDT", "TRADING", null, filter, null);
+                SymbolInfo symbolInfo = createSymbolInfo("BTCUSDT", "TRADING", null, filter, null, null);
 
                 OrderValidator.OrderValidationResult result = OrderValidator.validate(
                                 "BTCUSDT",
+                                OrderSide.BUY,
                                 new BigDecimal("0.000001"), // Below minimum
                                 new BigDecimal("50000"),
-                                symbolInfo);
+                                symbolInfo,
+                                new BigDecimal("50000"));
 
                 assertFalse(result.isValid());
                 assertTrue(result.getErrors().get(0).contains("below minimum"));
@@ -179,13 +195,15 @@ class OrderValidatorTest {
                                 new BigDecimal("9000"),
                                 new BigDecimal("0.00001"));
 
-                SymbolInfo symbolInfo = createSymbolInfo("BTCUSDT", "TRADING", null, filter, null);
+                SymbolInfo symbolInfo = createSymbolInfo("BTCUSDT", "TRADING", null, filter, null, null);
 
                 OrderValidator.OrderValidationResult result = OrderValidator.validate(
                                 "BTCUSDT",
+                                OrderSide.BUY,
                                 new BigDecimal("10000"), // Above maximum
                                 new BigDecimal("50000"),
-                                symbolInfo);
+                                symbolInfo,
+                                new BigDecimal("50000"));
 
                 assertFalse(result.isValid());
                 assertTrue(result.getErrors().get(0).contains("exceeds maximum"));
@@ -198,13 +216,15 @@ class OrderValidatorTest {
                 // Order value = 0.001 * 50000 = $50 (above $10 minimum)
                 MinNotionalFilter filter = new MinNotionalFilter(new BigDecimal("10.00"));
 
-                SymbolInfo symbolInfo = createSymbolInfo("BTCUSDT", "TRADING", null, null, filter);
+                SymbolInfo symbolInfo = createSymbolInfo("BTCUSDT", "TRADING", null, null, filter, null);
 
                 OrderValidator.OrderValidationResult result = OrderValidator.validate(
                                 "BTCUSDT",
+                                OrderSide.BUY,
                                 new BigDecimal("0.001"),
                                 new BigDecimal("50000"),
-                                symbolInfo);
+                                symbolInfo,
+                                new BigDecimal("50000"));
 
                 assertTrue(result.isValid());
                 assertFalse(result.hasWarnings());
@@ -215,13 +235,15 @@ class OrderValidatorTest {
                 // Order value = 0.0001 * 50000 = $5 (below $10 minimum)
                 MinNotionalFilter filter = new MinNotionalFilter(new BigDecimal("10.00"));
 
-                SymbolInfo symbolInfo = createSymbolInfo("BTCUSDT", "TRADING", null, null, filter);
+                SymbolInfo symbolInfo = createSymbolInfo("BTCUSDT", "TRADING", null, null, filter, null);
 
                 OrderValidator.OrderValidationResult result = OrderValidator.validate(
                                 "BTCUSDT",
+                                OrderSide.BUY,
                                 new BigDecimal("0.0001"),
                                 new BigDecimal("50000"),
-                                symbolInfo);
+                                symbolInfo,
+                                new BigDecimal("50000"));
 
                 assertFalse(result.isValid());
                 String error = result.getErrors().get(0);
@@ -246,13 +268,15 @@ class OrderValidatorTest {
                 MinNotionalFilter minNotionalFilter = new MinNotionalFilter(new BigDecimal("10.00"));
 
                 SymbolInfo symbolInfo = createSymbolInfo("BTCUSDT", "TRADING",
-                                priceFilter, lotSizeFilter, minNotionalFilter);
+                                priceFilter, lotSizeFilter, minNotionalFilter, null);
 
                 OrderValidator.OrderValidationResult result = OrderValidator.validate(
                                 "BTCUSDT",
+                                OrderSide.BUY,
                                 new BigDecimal("0.001"),
                                 new BigDecimal("50000.00"),
-                                symbolInfo);
+                                symbolInfo,
+                                new BigDecimal("50000.00"));
 
                 assertTrue(result.isValid());
                 assertEquals(new BigDecimal("0.001"), result.getAdjustedQuantity());
@@ -274,13 +298,15 @@ class OrderValidatorTest {
                 MinNotionalFilter minNotionalFilter = new MinNotionalFilter(new BigDecimal("10.00"));
 
                 SymbolInfo symbolInfo = createSymbolInfo("BTCUSDT", "TRADING",
-                                priceFilter, lotSizeFilter, minNotionalFilter);
+                                priceFilter, lotSizeFilter, minNotionalFilter, null);
 
                 OrderValidator.OrderValidationResult result = OrderValidator.validate(
                                 "BTCUSDT",
+                                OrderSide.BUY,
                                 new BigDecimal("0.0012345"), // Will adjust to 0.00123
                                 new BigDecimal("50000.567"), // Will adjust to 50000.56
-                                symbolInfo);
+                                symbolInfo,
+                                new BigDecimal("50000.00"));
 
                 assertTrue(result.isValid());
                 assertEquals(new BigDecimal("0.00123"), result.getAdjustedQuantity());
@@ -302,15 +328,17 @@ class OrderValidatorTest {
                 MinNotionalFilter minNotionalFilter = new MinNotionalFilter(new BigDecimal("10.00"));
 
                 SymbolInfo symbolInfo = createSymbolInfo("BTCUSDT", "TRADING",
-                                priceFilter, lotSizeFilter, minNotionalFilter);
+                                priceFilter, lotSizeFilter, minNotionalFilter, null);
 
                 // Original: 0.00025 * 50000.99 = $12.50 (OK)
                 // After adjustment: 0.00025 * 50000.99 → rounds down → may fail notional
                 OrderValidator.OrderValidationResult result = OrderValidator.validate(
                                 "BTCUSDT",
+                                OrderSide.BUY,
                                 new BigDecimal("0.000199"), // Rounds down to 0.00019
                                 new BigDecimal("50.00"), // Price OK
-                                symbolInfo);
+                                symbolInfo,
+                                new BigDecimal("50.00"));
 
                 assertFalse(result.isValid());
                 assertTrue(result.getErrors().get(0).contains("below minimum"));
@@ -325,13 +353,15 @@ class OrderValidatorTest {
                                 new BigDecimal("1000000"),
                                 new BigDecimal("0.01"));
 
-                SymbolInfo symbolInfo = createSymbolInfo("BTCUSDT", "HALT", priceFilter, null, null);
+                SymbolInfo symbolInfo = createSymbolInfo("BTCUSDT", "HALT", priceFilter, null, null, null);
 
                 OrderValidator.OrderValidationResult result = OrderValidator.validate(
                                 "BTCUSDT",
+                                OrderSide.BUY,
                                 new BigDecimal("0.001"),
                                 new BigDecimal("50000"),
-                                symbolInfo);
+                                symbolInfo,
+                                new BigDecimal("50000"));
 
                 assertFalse(result.isValid());
                 assertTrue(result.getErrors().get(0).contains("not tradable"));
@@ -342,9 +372,11 @@ class OrderValidatorTest {
         void testValidate_NullSymbolInfo_ReturnsWarning() {
                 OrderValidator.OrderValidationResult result = OrderValidator.validate(
                                 "BTCUSDT",
+                                OrderSide.BUY,
                                 new BigDecimal("0.001"),
                                 new BigDecimal("50000"),
-                                null);
+                                null,
+                                new BigDecimal("50000"));
 
                 assertTrue(result.isValid()); // Still valid but with warning
                 assertTrue(result.hasWarnings());
@@ -354,13 +386,15 @@ class OrderValidatorTest {
         @Test
         void testValidate_NoFilters_Passes() {
                 // Symbol with no filters (unusual but possible)
-                SymbolInfo symbolInfo = createSymbolInfo("BTCUSDT", "TRADING", null, null, null);
+                SymbolInfo symbolInfo = createSymbolInfo("BTCUSDT", "TRADING", null, null, null, null);
 
                 OrderValidator.OrderValidationResult result = OrderValidator.validate(
                                 "BTCUSDT",
+                                OrderSide.BUY,
                                 new BigDecimal("0.001"),
                                 new BigDecimal("50000"),
-                                symbolInfo);
+                                symbolInfo,
+                                new BigDecimal("50000"));
 
                 assertTrue(result.isValid());
                 assertFalse(result.hasWarnings());
@@ -368,16 +402,64 @@ class OrderValidatorTest {
 
         // ==================== Helper Methods ====================
 
+        @Test
+        void testPercentPriceBySide_OutOfRange_Fails() {
+                PercentPriceBySideFilter filter = new PercentPriceBySideFilter();
+                filter.setBidMultiplierDown(new BigDecimal("0.9"));
+                filter.setBidMultiplierUp(new BigDecimal("1.1"));
+                filter.setAskMultiplierDown(new BigDecimal("0.9"));
+                filter.setAskMultiplierUp(new BigDecimal("1.1"));
+
+                SymbolInfo symbolInfo = createSymbolInfo("BTCUSDT", "TRADING",
+                                null, null, null, filter);
+
+                OrderValidator.OrderValidationResult result = OrderValidator.validate(
+                                "BTCUSDT",
+                                OrderSide.BUY,
+                                new BigDecimal("0.001"),
+                                new BigDecimal("120"), // 20% above ref
+                                symbolInfo,
+                                new BigDecimal("100"));
+
+                assertFalse(result.isValid());
+                assertTrue(result.getErrors().get(0).contains("out of allowed range"));
+        }
+
+        @Test
+        void testPercentPriceBySide_SkipsWhenNoReferencePrice() {
+                PercentPriceBySideFilter filter = new PercentPriceBySideFilter();
+                filter.setBidMultiplierDown(new BigDecimal("0.9"));
+                filter.setBidMultiplierUp(new BigDecimal("1.1"));
+                filter.setAskMultiplierDown(new BigDecimal("0.9"));
+                filter.setAskMultiplierUp(new BigDecimal("1.1"));
+
+                SymbolInfo symbolInfo = createSymbolInfo("BTCUSDT", "TRADING",
+                                null, null, null, filter);
+
+                OrderValidator.OrderValidationResult result = OrderValidator.validate(
+                                "BTCUSDT",
+                                OrderSide.SELL,
+                                new BigDecimal("0.001"),
+                                new BigDecimal("120"),
+                                symbolInfo,
+                                null);
+
+                assertTrue(result.isValid());
+                assertTrue(result.hasWarnings());
+                assertTrue(result.getWarnings().get(0).contains("Reference price unavailable"));
+        }
+
         private SymbolInfo createSymbolInfo(String symbol, String status,
                         PriceFilter priceFilter,
                         LotSizeFilter lotSizeFilter,
-                        MinNotionalFilter minNotionalFilter) {
+                        MinNotionalFilter minNotionalFilter,
+                        PercentPriceBySideFilter percentFilter) {
                 SymbolInfo info = new SymbolInfo();
                 info.setSymbol(symbol);
                 info.setStatus(status);
 
-                if (priceFilter != null || lotSizeFilter != null || minNotionalFilter != null) {
-                        info.setFilters(Arrays.asList(priceFilter, lotSizeFilter, minNotionalFilter)
+                if (priceFilter != null || lotSizeFilter != null || minNotionalFilter != null || percentFilter != null) {
+                        info.setFilters(Arrays.asList(priceFilter, lotSizeFilter, minNotionalFilter, percentFilter)
                                         .stream()
                                         .filter(f -> f != null)
                                         .toList());
@@ -385,4 +467,5 @@ class OrderValidatorTest {
 
                 return info;
         }
+
 }

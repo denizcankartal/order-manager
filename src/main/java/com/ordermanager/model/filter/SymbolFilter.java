@@ -17,7 +17,8 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
         @JsonSubTypes.Type(value = PriceFilter.class, name = "PRICE_FILTER"),
         @JsonSubTypes.Type(value = LotSizeFilter.class, name = "LOT_SIZE"),
         @JsonSubTypes.Type(value = MinNotionalFilter.class, name = "MIN_NOTIONAL"),
-        @JsonSubTypes.Type(value = MinNotionalFilter.class, name = "NOTIONAL")
+        @JsonSubTypes.Type(value = MinNotionalFilter.class, name = "NOTIONAL"),
+        @JsonSubTypes.Type(value = PercentPriceBySideFilter.class, name = "PERCENT_PRICE_BY_SIDE")
 })
 @JsonIgnoreProperties(ignoreUnknown = true)
 public abstract class SymbolFilter {

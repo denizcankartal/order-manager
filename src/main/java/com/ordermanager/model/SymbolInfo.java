@@ -6,6 +6,7 @@ import com.ordermanager.model.filter.SymbolFilter;
 import com.ordermanager.model.filter.PriceFilter;
 import com.ordermanager.model.filter.LotSizeFilter;
 import com.ordermanager.model.filter.MinNotionalFilter;
+import com.ordermanager.model.filter.PercentPriceBySideFilter;
 
 import java.util.List;
 
@@ -102,6 +103,15 @@ public class SymbolInfo {
      */
     public MinNotionalFilter getMinNotionalFilter() {
         return getFilter(MinNotionalFilter.class);
+    }
+
+    /**
+     * Get PERCENT_PRICE_BY_SIDE filter for this symbol.
+     *
+     * @return PercentPriceBySideFilter or null if not found
+     */
+    public PercentPriceBySideFilter getPercentPriceBySideFilter() {
+        return getFilter(PercentPriceBySideFilter.class);
     }
 
     /**

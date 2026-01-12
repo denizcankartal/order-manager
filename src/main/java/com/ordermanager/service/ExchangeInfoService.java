@@ -4,10 +4,12 @@ import com.ordermanager.client.BinanceRestClient;
 import com.ordermanager.exception.ApiException;
 import com.ordermanager.model.SymbolInfo;
 import com.ordermanager.model.dto.ExchangeInfoResponse;
+import com.ordermanager.model.dto.TickerPriceResponse;
 import com.ordermanager.util.RetryUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.math.BigDecimal;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -65,6 +67,22 @@ public class ExchangeInfoService {
     }
 
     /**
+     * Get the latest price for a symbol using the public ticker endpoint.
+     *
+     * @param symbol Trading symbol (e.g., BTCUSDT)
+     * @return Current price as BigDecimal
+     */
+    public BigDecimal getCurrentPrice(String symbol) {
+        String endpoint = String.format("/api/v3/ticker/price?symbol=%s", symbol);
+        TickerPriceResponse response = RetryUtils.executeWithRetry(
+                () -> restClient.get(endpoint, TickerPriceResponse.class),
+                "fetch ticker price",
+                logger);
+
+        return response.getPriceAsBigDecimal();
+    }
+
+    /**
      * Get all cached symbol names.
      *
      * @return Set of all symbol names
@@ -106,9 +124,9 @@ public class ExchangeInfoService {
      */
     private void loadExchangeInfo() {
         try {
-            ExchangeInfoResponse response = RetryUtils.executeWithRetry(() ->
-                restClient.get("/api/v3/exchangeInfo", ExchangeInfoResponse.class),
-                "load exchange info", logger);
+            ExchangeInfoResponse response = RetryUtils.executeWithRetry(
+                    () -> restClient.get("/api/v3/exchangeInfo", ExchangeInfoResponse.class),
+                    "load exchange info", logger);
 
             if (response.getSymbols() == null) {
                 logger.warn("Exchange info response contains no symbols");
@@ -129,7 +147,9 @@ public class ExchangeInfoService {
 
             if (e.isRateLimit()) {
                 throw new RuntimeException(
-                        "Rate limit exceeded while loading exchange info. Wait 60 seconds and retry. Error: " + e.getMessage(), e);
+                        "Rate limit exceeded while loading exchange info. Wait 60 seconds and retry. Error: "
+                                + e.getMessage(),
+                        e);
             }
 
             throw new RuntimeException(String.format(

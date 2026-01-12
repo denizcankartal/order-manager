@@ -1,9 +1,11 @@
 package com.ordermanager.validator;
 
 import com.ordermanager.model.SymbolInfo;
+import com.ordermanager.model.OrderSide;
 import com.ordermanager.model.filter.LotSizeFilter;
 import com.ordermanager.model.filter.MinNotionalFilter;
 import com.ordermanager.model.filter.PriceFilter;
+import com.ordermanager.model.filter.PercentPriceBySideFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,16 +32,20 @@ public class OrderValidator {
      * Validate order parameters and return adjusted values.
      *
      * @param symbol     Trading symbol (e.g., "BTCUSDT")
+     * @param side       Order side (BUY/SELL)
      * @param quantity   Order quantity
      * @param price      Order price
      * @param symbolInfo Symbol information with filters
+     * @param referencePrice Current market price used for PERCENT_PRICE_BY_SIDE (can be null to skip)
      * @return Validation result with adjusted values or errors
      */
     public static OrderValidationResult validate(
             String symbol,
+            OrderSide side,
             BigDecimal quantity,
             BigDecimal price,
-            SymbolInfo symbolInfo) {
+            SymbolInfo symbolInfo,
+            BigDecimal referencePrice) {
 
         List<String> warnings = new ArrayList<>();
         List<String> errors = new ArrayList<>();
@@ -92,10 +98,63 @@ public class OrderValidator {
             warnings.addAll(notionalResult.getWarnings());
         }
 
+        PercentPriceBySideFilter percentFilter = symbolInfo.getPercentPriceBySideFilter();
+        if (percentFilter != null) {
+            ValidationResult percentResult = validatePercentPriceBySide(adjustedPrice, referencePrice, percentFilter, side);
+            if (!percentResult.isValid()) {
+                errors.addAll(percentResult.getWarnings());
+                return new OrderValidationResult(false, adjustedQty, adjustedPrice, warnings, errors);
+            }
+            warnings.addAll(percentResult.getWarnings());
+        }
+
         logger.debug("Order validation successful for {}: qty={} -> {}, price={} -> {}",
                 symbol, quantity, adjustedQty, price, adjustedPrice);
 
         return new OrderValidationResult(true, adjustedQty, adjustedPrice, warnings, errors);
+    }
+
+    /**
+     * Validate price against PERCENT_PRICE_BY_SIDE filter bounds.
+     *
+     * Does not auto-adjust; fails when out of bounds. If reference price is unavailable,
+     * skip the check with a warning.
+     */
+    private static ValidationResult validatePercentPriceBySide(
+            BigDecimal price,
+            BigDecimal referencePrice,
+            PercentPriceBySideFilter filter,
+            OrderSide side) {
+
+        if (referencePrice == null || referencePrice.compareTo(BigDecimal.ZERO) <= 0) {
+            String warning = "Reference price unavailable; skipping PERCENT_PRICE_BY_SIDE validation";
+            return ValidationResult.adjusted(price, price, warning);
+        }
+
+        boolean isBuy = side == OrderSide.BUY;
+        BigDecimal up = isBuy ? filter.getBidMultiplierUp() : filter.getAskMultiplierUp();
+        BigDecimal down = isBuy ? filter.getBidMultiplierDown() : filter.getAskMultiplierDown();
+
+        if (up == null || down == null) {
+            String warning = "PERCENT_PRICE_BY_SIDE missing multipliers; skipping validation";
+            return ValidationResult.adjusted(price, price, warning);
+        }
+
+        BigDecimal lowerBound = referencePrice.multiply(down);
+        BigDecimal upperBound = referencePrice.multiply(up);
+
+        if (price.compareTo(lowerBound) < 0 || price.compareTo(upperBound) > 0) {
+            String error = String.format(
+                    "Price %s out of allowed range [%s, %s] for side %s (ref=%s)",
+                    price.toPlainString(),
+                    lowerBound.toPlainString(),
+                    upperBound.toPlainString(),
+                    side,
+                    referencePrice.toPlainString());
+            return ValidationResult.failure(price, error);
+        }
+
+        return ValidationResult.success(price);
     }
 
     /**

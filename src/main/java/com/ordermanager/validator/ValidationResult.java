@@ -92,15 +92,4 @@ public class ValidationResult {
         return originalValue != null && adjustedValue != null &&
                 originalValue.compareTo(adjustedValue) != 0;
     }
-
-    @Override
-    public String toString() {
-        return "ValidationResult{" +
-                "originalValue=" + originalValue +
-                ", adjustedValue=" + adjustedValue +
-                ", wasAdjusted=" + wasAdjusted() +
-                ", valid=" + valid +
-                ", warnings=" + warnings +
-                '}';
-    }
 }
