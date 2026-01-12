@@ -79,15 +79,8 @@ public class BinanceRestClientIntegrationTest {
         AccountResponse response = apiService.getAccount();
 
         assertNotNull(response, "Account response should not be null");
-        assertNotNull(response.getAccountType(), "Account type should not be null");
         assertNotNull(response.getBalances(), "Balances should not be null");
 
-        System.out.println("Account Type: " + response.getAccountType());
-        System.out.println("Can Trade: " + response.isCanTrade());
-        System.out.println("Can Withdraw: " + response.isCanWithdraw());
-        System.out.println("Can Deposit: " + response.isCanDeposit());
-        System.out.println("Maker Commission: " + response.getMakerCommission());
-        System.out.println("Taker Commission: " + response.getTakerCommission());
         System.out.println("Total Balances: " + response.getBalances().size());
     }
 

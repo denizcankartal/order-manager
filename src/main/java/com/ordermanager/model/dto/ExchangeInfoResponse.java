@@ -51,23 +51,6 @@ public class ExchangeInfoResponse {
         this.symbols = symbols;
     }
 
-    /**
-     * Get symbol info by symbol name.
-     * 
-     * @param symbol Symbol name (e.g., "BTCUSDT")
-     * @return SymbolInfo or null if not found
-     */
-    public SymbolInfo getSymbolInfo(String symbol) {
-        if (symbols == null) {
-            return null;
-        }
-
-        return symbols.stream()
-                .filter(s -> s.getSymbol().equals(symbol))
-                .findFirst()
-                .orElse(null);
-    }
-
     @Override
     public String toString() {
         return "ExchangeInfoResponse{" +

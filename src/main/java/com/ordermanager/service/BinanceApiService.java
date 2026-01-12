@@ -34,9 +34,7 @@ public class BinanceApiService {
         AccountResponse response = restClient.getSigned("/api/v3/account", new HashMap<>(), AccountResponse.class);
 
         logger.info("Account fetched: accountType={}, balances={}, canTrade={}",
-                response.getAccountType(),
-                response.getBalances() != null ? response.getBalances().size() : 0,
-                response.isCanTrade());
+                response.getBalances() != null ? response.getBalances().size() : 0);
 
         return response;
     }

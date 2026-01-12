@@ -6,12 +6,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * Binance API error response DTO.
  *
  * https://developers.binance.com/docs/binance-spot-api-docs/errors
- * 
- * Example error response from Binance:
- * {
- * "code": -1013,
- * "msg": "Filter failure: LOT_SIZE"
- * }
  */
 public class ErrorResponse {
 

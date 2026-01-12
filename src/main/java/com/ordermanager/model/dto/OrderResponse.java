@@ -7,11 +7,6 @@ import java.math.BigDecimal;
 
 /**
  * DTO for Binance order operation responses (place, cancel, query).
- *
- * Used for:
- * - POST /api/v3/order (place order)
- * - DELETE /api/v3/order (cancel order)
- * - GET /api/v3/order (query order)
  * 
  * https://developers.binance.com/docs/binance-spot-api-docs/rest-api/trading-endpoints
  */
@@ -45,12 +40,8 @@ public class OrderResponse {
     @JsonProperty("side")
     private String side;
 
-    // Constructors
-
     public OrderResponse() {
     }
-
-    // Getters and Setters
 
     public String getSymbol() {
         return symbol;
