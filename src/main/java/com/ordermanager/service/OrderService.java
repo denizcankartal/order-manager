@@ -1,5 +1,6 @@
 package com.ordermanager.service;
 
+import com.ordermanager.client.BinanceRestClient;
 import com.ordermanager.model.Order;
 import com.ordermanager.model.OrderSide;
 import com.ordermanager.model.OrderStatus;
@@ -10,7 +11,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Service for order management operations.
@@ -26,16 +29,16 @@ public class OrderService {
 
     private static final Logger logger = LoggerFactory.getLogger(OrderService.class);
 
-    private final BinanceApiService apiService;
+    private final BinanceRestClient restClient;
     private final StateManager stateManager;
     private final AsyncStatePersister persister;
     private final ExchangeInfoService exchangeInfoService;
 
-    public OrderService(BinanceApiService apiService,
+    public OrderService(BinanceRestClient restClient,
             StateManager stateManager,
             AsyncStatePersister persister,
             ExchangeInfoService exchangeInfoService) {
-        this.apiService = apiService;
+        this.restClient = restClient;
         this.stateManager = stateManager;
         this.persister = persister;
         this.exchangeInfoService = exchangeInfoService;
@@ -86,12 +89,19 @@ public class OrderService {
 
         logger.debug("Order added to local state: {}", clientOrderId);
 
-        OrderResponse response = apiService.placeOrder(
-                symbol,
-                side.name(),
-                validatedPrice,
-                validatedQuantity,
-                clientOrderId);
+        Map<String, String> params = new HashMap<>();
+        params.put("symbol", symbol);
+        params.put("side", side.name());
+        params.put("type", "LIMIT");
+        params.put("timeInForce", "GTC");
+        params.put("quantity", validatedQuantity.toPlainString());
+        params.put("price", validatedPrice.toPlainString());
+
+        if (clientOrderId != null && !clientOrderId.isEmpty()) {
+            params.put("newClientOrderId", clientOrderId);
+        }
+
+        OrderResponse response = restClient.postSigned("/api/v3/order", params, OrderResponse.class);
 
         order.setOrderId(response.getOrderId());
         order.setStatus(OrderStatus.valueOf(response.getStatus()));
@@ -130,10 +140,18 @@ public class OrderService {
             return order;
         }
 
-        OrderResponse response = apiService.cancelOrder(
-                order.getSymbol(),
-                order.getOrderId(),
-                order.getClientOrderId());
+        Map<String, String> params = new HashMap<>();
+        params.put("symbol", order.getSymbol());
+
+        if (order.getOrderId() != null) {
+            params.put("orderId", String.valueOf(order.getOrderId()));
+        }
+
+        if (order.getClientOrderId() != null && !order.getClientOrderId().isEmpty()) {
+            params.put("origClientOrderId", order.getClientOrderId());
+        }
+
+        OrderResponse response = restClient.deleteSigned("/api/v3/order", params, OrderResponse.class);
 
         order.setStatus(OrderStatus.valueOf(response.getStatus()));
         order.setExecutedQty(response.getExecutedQtyAsBigDecimal());
@@ -198,10 +216,18 @@ public class OrderService {
             throw new IllegalArgumentException("Order not found: " + id);
         }
 
-        OrderResponse response = apiService.getOrder(
-                symbol,
-                localOrder.getOrderId(),
-                localOrder.getClientOrderId());
+        Map<String, String> params = new HashMap<>();
+        params.put("symbol", symbol);
+
+        if (localOrder.getOrderId() != null) {
+            params.put("orderId", String.valueOf(localOrder.getOrderId()));
+        }
+
+        if (localOrder.getClientOrderId() != null && !localOrder.getClientOrderId().isEmpty()) {
+            params.put("origClientOrderId", localOrder.getClientOrderId());
+        }
+
+        OrderResponse response = restClient.getSigned("/api/v3/order", params, OrderResponse.class);
 
         localOrder.setStatus(OrderStatus.valueOf(response.getStatus()));
         localOrder.setExecutedQty(response.getExecutedQtyAsBigDecimal());

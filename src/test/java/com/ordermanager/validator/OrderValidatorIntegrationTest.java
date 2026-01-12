@@ -3,7 +3,6 @@ package com.ordermanager.validator;
 import com.ordermanager.client.BinanceRestClient;
 import com.ordermanager.config.AppConfig;
 import com.ordermanager.model.SymbolInfo;
-import com.ordermanager.service.BinanceApiService;
 import com.ordermanager.service.ExchangeInfoService;
 import org.junit.jupiter.api.*;
 import org.slf4j.Logger;
@@ -30,7 +29,6 @@ class OrderValidatorIntegrationTest {
     private static final Logger logger = LoggerFactory.getLogger(OrderValidatorIntegrationTest.class);
 
     private BinanceRestClient restClient;
-    private BinanceApiService apiService;
     private ExchangeInfoService exchangeInfoService;
 
     @BeforeAll
@@ -49,8 +47,7 @@ class OrderValidatorIntegrationTest {
             timeSync.sync();
 
             restClient = new BinanceRestClient(config, timeSync);
-            apiService = new BinanceApiService(restClient);
-            exchangeInfoService = new ExchangeInfoService(apiService);
+            exchangeInfoService = new ExchangeInfoService(restClient);
 
             logger.info("Integration tests starting - connecting to Binance Testnet");
         } catch (Exception e) {
@@ -61,8 +58,8 @@ class OrderValidatorIntegrationTest {
 
     @AfterAll
     void tearDown() {
-        if (apiService != null) {
-            apiService.shutdown();
+        if (restClient != null) {
+            restClient.shutdown();
         }
     }
 

@@ -6,9 +6,10 @@ import com.ordermanager.model.SymbolInfo;
 import com.ordermanager.model.dto.AccountResponse;
 import com.ordermanager.model.dto.ExchangeInfoResponse;
 import com.ordermanager.model.dto.ServerTimeResponse;
-import com.ordermanager.service.BinanceApiService;
 import com.ordermanager.service.TimeSync;
 import org.junit.jupiter.api.*;
+
+import java.util.HashMap;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -26,7 +27,6 @@ public class BinanceRestClientIntegrationTest {
     private AppConfig config;
     private TimeSync timeSync;
     private BinanceRestClient restClient;
-    private BinanceApiService apiService;
 
     @BeforeAll
     public void setUp() {
@@ -41,7 +41,6 @@ public class BinanceRestClientIntegrationTest {
         timeSync.sync();
 
         restClient = new BinanceRestClient(config, timeSync);
-        apiService = new BinanceApiService(restClient);
 
         System.out.println("=================================================");
         System.out.println("Running integration tests against Binance Testnet");
@@ -51,8 +50,8 @@ public class BinanceRestClientIntegrationTest {
 
     @AfterAll
     public void tearDown() {
-        if (apiService != null) {
-            apiService.shutdown();
+        if (restClient != null) {
+            restClient.shutdown();
         }
         System.out.println("Integration tests completed - REST client shut down");
     }
@@ -76,7 +75,7 @@ public class BinanceRestClientIntegrationTest {
 
     @Test
     public void testGetAccount() {
-        AccountResponse response = apiService.getAccount();
+        AccountResponse response = restClient.getSigned("/api/v3/account", new HashMap<>(), AccountResponse.class);
 
         assertNotNull(response, "Account response should not be null");
         assertNotNull(response.getBalances(), "Balances should not be null");
@@ -87,7 +86,7 @@ public class BinanceRestClientIntegrationTest {
     @Test
     @Order(3)
     public void testGetExchangeInfo() {
-        ExchangeInfoResponse response = apiService.getExchangeInfo();
+        ExchangeInfoResponse response = restClient.get("/api/v3/exchangeInfo", ExchangeInfoResponse.class);
 
         assertNotNull(response, "Exchange info response should not be null");
         assertNotNull(response.getTimezone(), "Timezone should not be null");

@@ -1,5 +1,6 @@
 package com.ordermanager.service;
 
+import com.ordermanager.client.BinanceRestClient;
 import com.ordermanager.model.SymbolInfo;
 import com.ordermanager.model.dto.ExchangeInfoResponse;
 import com.ordermanager.model.filter.PriceFilter;
@@ -18,14 +19,14 @@ import static org.mockito.Mockito.*;
 class ExchangeInfoServiceTest {
 
     @Mock
-    private BinanceApiService mockApiService;
+    private BinanceRestClient mockRestClient;
 
     private ExchangeInfoService service;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        service = new ExchangeInfoService(mockApiService);
+        service = new ExchangeInfoService(mockRestClient);
     }
 
     @Test
@@ -34,7 +35,7 @@ class ExchangeInfoServiceTest {
         ExchangeInfoResponse mockResponse = createMockResponse(
                 createSymbolInfo("BTCUSDT", "TRADING"),
                 createSymbolInfo("ETHUSDT", "TRADING"));
-        when(mockApiService.getExchangeInfo()).thenReturn(mockResponse);
+        when(mockRestClient.get(eq("/api/v3/exchangeInfo"), eq(ExchangeInfoResponse.class))).thenReturn(mockResponse);
 
         // Act
         SymbolInfo result = service.getSymbolInfo("BTCUSDT");
@@ -42,7 +43,7 @@ class ExchangeInfoServiceTest {
         // Assert
         assertNotNull(result);
         assertEquals("BTCUSDT", result.getSymbol());
-        verify(mockApiService, times(1)).getExchangeInfo();
+        verify(mockRestClient, times(1)).get(eq("/api/v3/exchangeInfo"), eq(ExchangeInfoResponse.class));
     }
 
     @Test
@@ -51,7 +52,7 @@ class ExchangeInfoServiceTest {
         ExchangeInfoResponse mockResponse = createMockResponse(
                 createSymbolInfo("BTCUSDT", "TRADING"),
                 createSymbolInfo("ETHUSDT", "TRADING"));
-        when(mockApiService.getExchangeInfo()).thenReturn(mockResponse);
+        when(mockRestClient.get(eq("/api/v3/exchangeInfo"), eq(ExchangeInfoResponse.class))).thenReturn(mockResponse);
 
         // Act
         service.getSymbolInfo("BTCUSDT"); // First call - initializes
@@ -60,7 +61,7 @@ class ExchangeInfoServiceTest {
         // Assert
         assertNotNull(result);
         assertEquals("ETHUSDT", result.getSymbol());
-        verify(mockApiService, times(1)).getExchangeInfo(); // Called only once
+        verify(mockRestClient, times(1)).get(eq("/api/v3/exchangeInfo"), eq(ExchangeInfoResponse.class)); // Called only once
     }
 
     @Test
@@ -68,14 +69,14 @@ class ExchangeInfoServiceTest {
         // Arrange
         ExchangeInfoResponse mockResponse = createMockResponse(
                 createSymbolInfo("BTCUSDT", "TRADING"));
-        when(mockApiService.getExchangeInfo()).thenReturn(mockResponse);
+        when(mockRestClient.get(eq("/api/v3/exchangeInfo"), eq(ExchangeInfoResponse.class))).thenReturn(mockResponse);
 
         // Act
         SymbolInfo result = service.getSymbolInfo("XYZUSDT");
 
         // Assert
         assertNull(result);
-        verify(mockApiService, times(1)).getExchangeInfo();
+        verify(mockRestClient, times(1)).get(eq("/api/v3/exchangeInfo"), eq(ExchangeInfoResponse.class));
     }
 
     @Test
@@ -83,7 +84,7 @@ class ExchangeInfoServiceTest {
         // Arrange
         ExchangeInfoResponse mockResponse = createMockResponse(
                 createSymbolInfo("BTCUSDT", "TRADING"));
-        when(mockApiService.getExchangeInfo()).thenReturn(mockResponse);
+        when(mockRestClient.get(eq("/api/v3/exchangeInfo"), eq(ExchangeInfoResponse.class))).thenReturn(mockResponse);
 
         // Act
         boolean exists = service.symbolExists("BTCUSDT");
@@ -97,7 +98,7 @@ class ExchangeInfoServiceTest {
         // Arrange
         ExchangeInfoResponse mockResponse = createMockResponse(
                 createSymbolInfo("BTCUSDT", "TRADING"));
-        when(mockApiService.getExchangeInfo()).thenReturn(mockResponse);
+        when(mockRestClient.get(eq("/api/v3/exchangeInfo"), eq(ExchangeInfoResponse.class))).thenReturn(mockResponse);
 
         // Act
         boolean exists = service.symbolExists("XYZUSDT");
@@ -113,7 +114,7 @@ class ExchangeInfoServiceTest {
                 createSymbolInfo("BTCUSDT", "TRADING"),
                 createSymbolInfo("ETHUSDT", "TRADING"),
                 createSymbolInfo("BNBUSDT", "TRADING"));
-        when(mockApiService.getExchangeInfo()).thenReturn(mockResponse);
+        when(mockRestClient.get(eq("/api/v3/exchangeInfo"), eq(ExchangeInfoResponse.class))).thenReturn(mockResponse);
 
         // Act
         service.getSymbolInfo("BTCUSDT"); // Initialize cache
@@ -133,7 +134,7 @@ class ExchangeInfoServiceTest {
                 createSymbolInfo("BTCUSDT", "TRADING"));
         ExchangeInfoResponse secondResponse = createMockResponse(
                 createSymbolInfo("ETHUSDT", "TRADING"));
-        when(mockApiService.getExchangeInfo())
+        when(mockRestClient.get(eq("/api/v3/exchangeInfo"), eq(ExchangeInfoResponse.class)))
                 .thenReturn(firstResponse)
                 .thenReturn(secondResponse);
 
@@ -146,13 +147,13 @@ class ExchangeInfoServiceTest {
         assertNotNull(result);
         assertEquals("ETHUSDT", result.getSymbol());
         assertNull(service.getSymbolInfo("BTCUSDT")); // Old data cleared
-        verify(mockApiService, times(2)).getExchangeInfo();
+        verify(mockRestClient, times(2)).get(eq("/api/v3/exchangeInfo"), eq(ExchangeInfoResponse.class));
     }
 
     @Test
     void testRefresh_ApiFailure_ThrowsException() {
         // Arrange
-        when(mockApiService.getExchangeInfo()).thenThrow(new RuntimeException("API error"));
+        when(mockRestClient.get(eq("/api/v3/exchangeInfo"), eq(ExchangeInfoResponse.class))).thenThrow(new RuntimeException("API error"));
 
         // Act & Assert
         assertThrows(RuntimeException.class, () -> service.refresh());
@@ -163,7 +164,7 @@ class ExchangeInfoServiceTest {
         // Arrange
         ExchangeInfoResponse mockResponse = createMockResponse(
                 createSymbolInfo("BTCUSDT", "TRADING"));
-        when(mockApiService.getExchangeInfo()).thenReturn(mockResponse);
+        when(mockRestClient.get(eq("/api/v3/exchangeInfo"), eq(ExchangeInfoResponse.class))).thenReturn(mockResponse);
 
         // Act - Multiple threads accessing simultaneously
         Thread thread1 = new Thread(() -> service.getSymbolInfo("BTCUSDT"));
@@ -179,7 +180,7 @@ class ExchangeInfoServiceTest {
         thread3.join();
 
         // Assert - Should only call API once despite concurrent access
-        verify(mockApiService, times(1)).getExchangeInfo();
+        verify(mockRestClient, times(1)).get(eq("/api/v3/exchangeInfo"), eq(ExchangeInfoResponse.class));
     }
 
     @Test
@@ -187,7 +188,7 @@ class ExchangeInfoServiceTest {
         // Arrange
         ExchangeInfoResponse mockResponse = new ExchangeInfoResponse();
         mockResponse.setSymbols(null); // No symbols
-        when(mockApiService.getExchangeInfo()).thenReturn(mockResponse);
+        when(mockRestClient.get(eq("/api/v3/exchangeInfo"), eq(ExchangeInfoResponse.class))).thenReturn(mockResponse);
 
         // Act
         SymbolInfo result = service.getSymbolInfo("BTCUSDT");
@@ -206,7 +207,7 @@ class ExchangeInfoServiceTest {
 
         ExchangeInfoResponse mockResponse = new ExchangeInfoResponse();
         mockResponse.setSymbols(Arrays.asList(validSymbol, invalidSymbol));
-        when(mockApiService.getExchangeInfo()).thenReturn(mockResponse);
+        when(mockRestClient.get(eq("/api/v3/exchangeInfo"), eq(ExchangeInfoResponse.class))).thenReturn(mockResponse);
 
         // Act
         service.getSymbolInfo("BTCUSDT");

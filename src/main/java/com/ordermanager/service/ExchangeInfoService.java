@@ -1,5 +1,6 @@
 package com.ordermanager.service;
 
+import com.ordermanager.client.BinanceRestClient;
 import com.ordermanager.model.SymbolInfo;
 import com.ordermanager.model.dto.ExchangeInfoResponse;
 import org.slf4j.Logger;
@@ -22,12 +23,12 @@ public class ExchangeInfoService {
 
     private static final Logger logger = LoggerFactory.getLogger(ExchangeInfoService.class);
 
-    private final BinanceApiService apiService;
+    private final BinanceRestClient restClient;
     private final Map<String, SymbolInfo> symbolCache;
     private volatile boolean initialized;
 
-    public ExchangeInfoService(BinanceApiService apiService) {
-        this.apiService = apiService;
+    public ExchangeInfoService(BinanceRestClient restClient) {
+        this.restClient = restClient;
         this.symbolCache = new ConcurrentHashMap<>();
         this.initialized = false;
     }
@@ -103,7 +104,7 @@ public class ExchangeInfoService {
      */
     private void loadExchangeInfo() {
         try {
-            ExchangeInfoResponse response = apiService.getExchangeInfo();
+            ExchangeInfoResponse response = restClient.get("/api/v3/exchangeInfo", ExchangeInfoResponse.class);
 
             if (response.getSymbols() == null) {
                 logger.warn("Exchange info response contains no symbols");

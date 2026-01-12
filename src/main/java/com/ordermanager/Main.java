@@ -8,7 +8,6 @@ import com.ordermanager.model.Order;
 import com.ordermanager.persistence.StatePersistence;
 import com.ordermanager.service.AsyncStatePersister;
 import com.ordermanager.service.BalanceService;
-import com.ordermanager.service.BinanceApiService;
 import com.ordermanager.service.ExchangeInfoService;
 import com.ordermanager.service.OrderService;
 import com.ordermanager.service.StateManager;
@@ -29,7 +28,7 @@ public class Main {
     public static void main(String[] args) {
         StatePersistence persistence = null;
         AsyncStatePersister statePersister = null;
-        BinanceApiService apiService = null;
+        BinanceRestClient restClient = null;
 
         try {
             AppConfig config = AppConfig.loadFromEnv();
@@ -39,11 +38,10 @@ public class Main {
             timeSync.sync();
             logger.debug("Time synchronized with exchange");
 
-            BinanceRestClient restClient = new BinanceRestClient(config, timeSync);
-            apiService = new BinanceApiService(restClient);
+            restClient = new BinanceRestClient(config, timeSync);
 
-            BalanceService balanceService = new BalanceService(apiService);
-            ExchangeInfoService exchangeInfoService = new ExchangeInfoService(apiService);
+            BalanceService balanceService = new BalanceService(restClient);
+            ExchangeInfoService exchangeInfoService = new ExchangeInfoService(restClient);
 
             persistence = new StatePersistence();
             StateManager stateManager = new StateManager();
@@ -59,14 +57,14 @@ public class Main {
             statePersister = new AsyncStatePersister(persistence);
             statePersister.start();
 
-            OrderService orderService = new OrderService(apiService, stateManager, statePersister, exchangeInfoService);
+            OrderService orderService = new OrderService(restClient, stateManager, statePersister, exchangeInfoService);
 
             int exitCode = new CommandLine(new OrderManagerCLI(balanceService, orderService, exchangeInfoService))
                     .execute(args);
 
             logger.debug("Command completed with exit code: {}", exitCode);
             statePersister.shutdown(5);
-            apiService.shutdown();
+            restClient.shutdown();
 
             System.exit(exitCode);
 
@@ -86,9 +84,9 @@ public class Main {
                     logger.error("Error during emergency cleanup", cleanupError);
                 }
             }
-            if (apiService != null) {
+            if (restClient != null) {
                 try {
-                    apiService.shutdown();
+                    restClient.shutdown();
                 } catch (Exception cleanupError) {
                     logger.error("Error during emergency cleanup", cleanupError);
                 }

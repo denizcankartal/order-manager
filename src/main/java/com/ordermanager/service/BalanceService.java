@@ -1,11 +1,13 @@
 package com.ordermanager.service;
 
+import com.ordermanager.client.BinanceRestClient;
 import com.ordermanager.model.Balance;
 import com.ordermanager.model.dto.AccountResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -24,10 +26,10 @@ public class BalanceService {
 
     private static final Logger logger = LoggerFactory.getLogger(BalanceService.class);
 
-    private final BinanceApiService apiService;
+    private final BinanceRestClient restClient;
 
-    public BalanceService(BinanceApiService apiService) {
-        this.apiService = apiService;
+    public BalanceService(BinanceRestClient restClient) {
+        this.restClient = restClient;
     }
 
     /**
@@ -38,7 +40,7 @@ public class BalanceService {
     public List<Balance> getAllBalances() {
         logger.debug("Fetching all balances");
 
-        AccountResponse accountResponse = apiService.getAccount();
+        AccountResponse accountResponse = restClient.getSigned("/api/v3/account", new HashMap<>(), AccountResponse.class);
 
         List<Balance> balances = accountResponse.getBalances().stream()
             .map(this::convertToBalance)
