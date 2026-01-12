@@ -5,8 +5,15 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.math.BigDecimal;
 
 /**
- * LOT_SIZE filter defines the quantity (aka "lots" in auction terms) rules for
- * a symbol.
+ * The LOT_SIZE filter defines the quantity (aka "lots" in auction terms) rules
+ * for a symbol
+ * 
+ * In order to pass the lot size, the following must be true for
+ * quantity/icebergQty:
+ * 
+ * quantity >= minQty
+ * quantity <= maxQty
+ * quantity % stepSize == 0
  * 
  * https://developers.binance.com/docs/binance-spot-api-docs/filters#lot_size
  */
@@ -57,14 +64,5 @@ public class LotSizeFilter extends SymbolFilter {
 
     public void setStepSize(BigDecimal stepSize) {
         this.stepSize = stepSize;
-    }
-
-    @Override
-    public String toString() {
-        return "LotSizeFilter{" +
-                "minQty=" + minQty +
-                ", maxQty=" + maxQty +
-                ", stepSize=" + stepSize +
-                '}';
     }
 }

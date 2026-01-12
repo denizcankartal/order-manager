@@ -8,29 +8,17 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
  * Used as default implementation for filters we don't need to validate against
  * (e.g., ICEBERG_PARTS, MARKET_LOT_SIZE, MAX_NUM_ORDERS, etc.).
  *
- * This allows graceful handling of new filter types without breaking deserialization.
+ * This allows graceful handling of new filter types without breaking
+ * deserialization.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class UnknownFilter extends SymbolFilter {
-
-    private String filterType;
 
     public UnknownFilter() {
     }
 
     @Override
     public String getFilterType() {
-        return filterType != null ? filterType : "UNKNOWN";
-    }
-
-    public void setFilterType(String filterType) {
-        this.filterType = filterType;
-    }
-
-    @Override
-    public String toString() {
-        return "UnknownFilter{" +
-                "filterType='" + filterType + '\'' +
-                '}';
+        return "UNKNOWN";
     }
 }

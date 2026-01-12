@@ -34,11 +34,4 @@ public class MinNotionalFilter extends SymbolFilter {
     public void setMinNotional(BigDecimal minNotional) {
         this.minNotional = minNotional;
     }
-
-    @Override
-    public String toString() {
-        return "MinNotionalFilter{" +
-                "minNotional=" + minNotional +
-                '}';
-    }
 }
