@@ -167,12 +167,21 @@ public class BinanceRestClient {
             String body = response.body() != null ? response.body().string() : "";
 
             if (!response.isSuccessful()) {
-                throw parseErrorResponse(response.code(), body);
+                ApiException ex = parseErrorResponse(response.code(), body);
+                if (ex.isTimestampError()) {
+                    try {
+                        timeSync.sync();
+                    } catch (Exception syncError) {
+                        logger.warn("Failed to resync time after timestamp error: {}", syncError.getMessage());
+                    }
+                }
+                throw ex;
             }
 
             // Deserialize response to specified type
             T parsedResponse = objectMapper.readValue(body, responseType);
-            logger.debug("Response: {} (type: {})", body, responseType.getSimpleName());
+            String logBody = body.length() > 500 ? body.substring(0, 500) + "...(truncated)" : body;
+            logger.debug("Response: {} (type: {})", logBody, responseType.getSimpleName());
 
             return parsedResponse;
 
@@ -208,7 +217,7 @@ public class BinanceRestClient {
      */
     private boolean isRetriable(int code) {
         // Retriable HTTP codes: 429 (rate limit), 500-504 (server errors)
-        if (code == 429 || (code >= 500 && code <= 504)) {
+        if (code == 418 || code == 429 || (code >= 500 && code <= 504)) {
             return true;
         }
 
@@ -296,9 +305,5 @@ public class BinanceRestClient {
         httpClient.dispatcher().executorService().shutdown();
         httpClient.connectionPool().evictAll();
         logger.info("BinanceRestClient shut down");
-    }
-
-    public OkHttpClient getHttpClient() {
-        return httpClient;
     }
 }

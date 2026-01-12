@@ -59,7 +59,14 @@ public class Main {
 
             OrderService orderService = new OrderService(restClient, stateManager, statePersister, exchangeInfoService);
 
-            int exitCode = new CommandLine(new OrderManagerCLI(balanceService, orderService, exchangeInfoService))
+            try {
+                orderService.refreshOpenOrders();
+            } catch (Exception e) {
+                logger.warn("Could not reconcile open orders on startup: {}", e.getMessage());
+            }
+
+            int exitCode = new CommandLine(new OrderManagerCLI(balanceService, orderService, exchangeInfoService,
+                    config.getBaseAsset(), config.getQuoteAsset()))
                     .execute(args);
 
             logger.debug("Command completed with exit code: {}", exitCode);

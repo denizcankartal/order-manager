@@ -17,9 +17,6 @@ public class AddOrderCommand implements Callable<Integer> {
     @Option(names = { "--side" }, required = true, description = "Order side: BUY or SELL")
     private OrderSide side;
 
-    @Option(names = { "--symbol" }, required = true, description = "Trading symbol (e.g., BTCUSDT)")
-    private String symbol;
-
     @Option(names = { "--price" }, required = true, description = "Limit price")
     private BigDecimal price;
 
@@ -29,7 +26,7 @@ public class AddOrderCommand implements Callable<Integer> {
     @Option(names = { "--client-id" }, description = "Client order ID (optional, auto-generated if not provided)")
     private String clientOrderId;
 
-    // Visible for testing
+    // visible for testing
     void setParent(OrderManagerCLI parent) {
         this.parent = parent;
     }
@@ -37,7 +34,10 @@ public class AddOrderCommand implements Callable<Integer> {
     @Override
     public Integer call() {
         try {
-            var result = parent.getOrderService().placeOrder(symbol, side, price, quantity, clientOrderId);
+            parent.configureLogging();
+
+            var result = parent.getOrderService().placeOrder(parent.getSymbol(), side, price, quantity, clientOrderId);
+
             Order order = result.getOrder();
 
             if (!result.getWarnings().isEmpty()) {
@@ -53,6 +53,11 @@ public class AddOrderCommand implements Callable<Integer> {
                     order.getOrigQty(),
                     order.getSymbol(),
                     order.getPrice(),
+                    order.getStatus());
+
+            System.out.printf("{\"orderId\": %s, \"clientOrderId\": \"%s\", \"status\": \"%s\"}%n",
+                    order.getOrderId(),
+                    order.getClientOrderId(),
                     order.getStatus());
 
             return 0;

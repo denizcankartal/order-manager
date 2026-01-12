@@ -40,6 +40,9 @@ public class OrderResponse {
     @JsonProperty("side")
     private String side;
 
+    @JsonProperty("updateTime")
+    private Long updateTime;
+
     public OrderResponse() {
     }
 
@@ -113,6 +116,14 @@ public class OrderResponse {
 
     public void setSide(String side) {
         this.side = side;
+    }
+
+    public Long getUpdateTime() {
+        return updateTime;
+    }
+
+    public void setUpdateTime(Long updateTime) {
+        this.updateTime = updateTime;
     }
 
     /**

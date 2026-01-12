@@ -128,7 +128,7 @@ public class AsyncStatePersister {
      *
      * Useful for shutdown to ensure all pending writes complete.
      */
-    public void flush() {
+    private void flush() {
         if (writeQueue.isEmpty()) {
             return;
         }
@@ -176,13 +176,5 @@ public class AsyncStatePersister {
             writerThread.shutdownNow();
             Thread.currentThread().interrupt();
         }
-    }
-
-    public boolean isRunning() {
-        return running.get();
-    }
-
-    public int getPendingWriteCount() {
-        return writeQueue.size();
     }
 }

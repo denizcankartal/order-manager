@@ -3,6 +3,9 @@ package com.ordermanager.cli;
 import com.ordermanager.service.BalanceService;
 import com.ordermanager.service.ExchangeInfoService;
 import com.ordermanager.service.OrderService;
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import org.slf4j.LoggerFactory;
 
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -19,12 +22,19 @@ public class OrderManagerCLI implements Runnable {
     private final BalanceService balanceService;
     private final OrderService orderService;
     private final ExchangeInfoService exchangeInfoService;
+    private final String baseAsset;
+    private final String quoteAsset;
+
+    @CommandLine.Option(names = "--verbose", description = "Enable verbose HTTP logging")
+    private boolean verbose;
 
     public OrderManagerCLI(BalanceService balanceService, OrderService orderService,
-            ExchangeInfoService exchangeInfoService) {
+            ExchangeInfoService exchangeInfoService, String baseAsset, String quotedAsset) {
         this.balanceService = balanceService;
         this.orderService = orderService;
         this.exchangeInfoService = exchangeInfoService;
+        this.quoteAsset = quotedAsset;
+        this.baseAsset = baseAsset;
     }
 
     public BalanceService getBalanceService() {
@@ -37,6 +47,31 @@ public class OrderManagerCLI implements Runnable {
 
     public ExchangeInfoService getExchangeInfoService() {
         return exchangeInfoService;
+    }
+
+    public boolean isVerbose() {
+        return verbose;
+    }
+
+    public String getQuoteAsset() {
+        return quoteAsset;
+    }
+
+    public String getBaseAsset() {
+        return baseAsset;
+    }
+
+    public String getSymbol() {
+        return baseAsset + quoteAsset;
+    }
+
+    public void configureLogging() {
+        if (!verbose) {
+            return;
+        }
+
+        Logger root = (Logger) LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
+        root.setLevel(Level.DEBUG);
     }
 
     @Override

@@ -17,26 +17,24 @@ public class ListOrdersCommand implements Callable<Integer> {
     @ParentCommand
     private OrderManagerCLI parent;
 
-    @Option(names = { "--symbol" }, description = "Filter by symbol (e.g., BTCUSDT)")
-    private String symbol;
-
     @Override
     public Integer call() {
         try {
-            List<Order> orders = parent.getOrderService().listOpenOrders(symbol);
+            parent.configureLogging();
+            List<Order> orders = parent.getOrderService().listOpenOrders(parent.getSymbol());
 
             if (orders.isEmpty()) {
                 System.out.println("No open orders" +
-                        (symbol != null ? " for symbol " + symbol : "") + ".");
+                        (parent.getSymbol() != null ? " for symbol " + parent.getSymbol() : "") + ".");
                 return 0;
             }
 
-            System.out.printf("%-12s %-18s %-6s %-12s %-14s %-14s %-18s%n",
+            System.out.printf("%-12s %-18s %-6s %-12s %-14s %-14s %-14s %-10s %-18s%n",
                     "ORDER_ID", "CLIENT_ID", "SIDE", "SYMBOL",
-                    "PRICE", "EXEC_QTY", "UPDATE_TIME");
+                    "PRICE", "ORIG_QTY", "EXEC_QTY", "STATUS", "UPDATE_TIME");
 
             System.out.println(
-                    "----------------------------------------------------------------------------------------");
+                    "----------------------------------------------------------------------------------------------------------");
 
             for (Order o : orders) {
                 long updateTime = o.getUpdateTime();
@@ -45,13 +43,15 @@ public class ListOrdersCommand implements Callable<Integer> {
                         .withZone(ZoneId.systemDefault())
                         .format(instant);
 
-                System.out.printf("%-12s %-18s %-6s %-12s %-14s %-14s %-18s%n",
+                System.out.printf("%-12s %-18s %-6s %-12s %-14s %-14s %-14s %-10s %-18s%n",
                         o.getOrderId(),
                         o.getClientOrderId(),
                         o.getSide(),
                         o.getSymbol(),
                         o.getPrice(),
+                        o.getOrigQty(),
                         o.getExecutedQty(),
+                        o.getStatus(),
                         formatted);
 
             }

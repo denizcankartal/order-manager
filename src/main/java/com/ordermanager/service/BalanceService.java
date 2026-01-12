@@ -2,28 +2,20 @@ package com.ordermanager.service;
 
 import com.ordermanager.client.BinanceRestClient;
 import com.ordermanager.exception.ApiException;
-import com.ordermanager.model.Balance;
 import com.ordermanager.model.dto.AccountResponse;
+import com.ordermanager.model.dto.AccountResponse.BalanceInfo;
 import com.ordermanager.util.RetryUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.math.BigDecimal;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
-/**
- * Service for managing account balances.
- *
- * Responsibilities:
- * - Fetch account balances from Binance API
- * - Convert BalanceInfo DTOs to Balance domain models
- * - Filter balances (non-zero, by asset)
- * - Provide convenient query methods
- */
 public class BalanceService {
 
     private static final Logger logger = LoggerFactory.getLogger(BalanceService.class);
@@ -35,28 +27,39 @@ public class BalanceService {
     }
 
     /**
-     * Fetch all balances from Binance API.
+     * Fetch balances for relevant assets of the traded symbol.
      *
+     * @param assets Asset symbols (e.g., "BTC", "USDT")
      * @return List of all balances (including zero balances)
      */
-    public List<Balance> getAllBalances() {
-        logger.debug("Fetching all balances");
+    public List<BalanceInfo> getBalances(String[] assets) {
+        if (assets.length == 0) {
+            return Collections.emptyList();
+        }
+
+        Set<String> requestedAssets = Arrays.stream(assets)
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(String::toUpperCase)
+                .collect(Collectors.toSet());
 
         try {
-            AccountResponse accountResponse = RetryUtils.executeWithRetry(() ->
-                restClient.getSigned("/api/v3/account", new HashMap<>(), AccountResponse.class),
-                "fetch account balances", logger);
+            AccountResponse accountResponse = RetryUtils.executeWithRetry(
+                    () -> restClient.getSigned("/api/v3/account", new HashMap<>(), AccountResponse.class),
+                    "fetch account balances", logger);
 
-            List<Balance> balances = accountResponse.getBalances().stream()
-                .map(this::convertToBalance)
-                .collect(Collectors.toList());
+            if (accountResponse.getBalances() == null || accountResponse.getBalances().isEmpty()) {
+                return Collections.emptyList();
+            }
 
-            logger.info("Fetched {} balances", balances.size());
-
-            return balances;
+            return accountResponse.getBalances().stream()
+                    .filter(b -> b.getAsset() != null &&
+                            requestedAssets.contains(b.getAsset().toUpperCase()))
+                    .collect(Collectors.toList());
 
         } catch (ApiException e) {
-            logger.error("Failed to fetch account balances: error={}", e.getMessage());
+            logger.error("Failed to fetch balances: error={}", e.getMessage());
 
             if (e.isRateLimit()) {
                 throw new IllegalStateException(
@@ -71,106 +74,5 @@ public class BalanceService {
             throw new RuntimeException(String.format(
                     "Failed to fetch account balances: %s (error code: %d)", e.getMessage(), e.getStatusCode()), e);
         }
-    }
-
-    /**
-     * Fetch all non-zero balances from Binance API.
-     *
-     * Filters out assets with zero free and locked amounts.
-     *
-     * @return List of balances with non-zero amounts
-     */
-    public List<Balance> getNonZeroBalances() {
-        logger.debug("Fetching non-zero balances");
-
-        List<Balance> allBalances = getAllBalances();
-        List<Balance> nonZeroBalances = allBalances.stream()
-            .filter(Balance::hasBalance)
-            .collect(Collectors.toList());
-
-        logger.info("Fetched {} non-zero balances (from {} total)", nonZeroBalances.size(), allBalances.size());
-
-        return nonZeroBalances;
-    }
-
-    /**
-     * Get balance for a specific asset.
-     *
-     * @param asset Asset symbol (e.g., "BTC", "USDT")
-     * @return Balance for the asset, or empty if not found
-     */
-    public Optional<Balance> getBalance(String asset) {
-        logger.debug("Fetching balance for asset: {}", asset);
-
-        List<Balance> allBalances = getAllBalances();
-        Optional<Balance> balance = allBalances.stream()
-            .filter(b -> b.getAsset().equalsIgnoreCase(asset))
-            .findFirst();
-
-        if (balance.isPresent()) {
-            logger.info("Balance for {}: free={}, locked={}, total={}",
-                asset, balance.get().getFree(), balance.get().getLocked(), balance.get().getTotal());
-        } else {
-            logger.warn("Balance not found for asset: {}", asset);
-        }
-
-        return balance;
-    }
-
-    /**
-     * Get balances as a map indexed by asset symbol.
-     *
-     * Useful for quick lookups.
-     *
-     * @return Map of asset symbol -> Balance
-     */
-    public Map<String, Balance> getBalancesMap() {
-        logger.debug("Fetching balances as map");
-
-        List<Balance> balances = getAllBalances();
-        Map<String, Balance> balanceMap = balances.stream()
-            .collect(Collectors.toMap(Balance::getAsset, b -> b));
-
-        logger.info("Created balance map with {} entries", balanceMap.size());
-
-        return balanceMap;
-    }
-
-    /**
-     * Check if account has sufficient free balance for an asset.
-     *
-     * @param asset Asset symbol (e.g., "BTC", "USDT")
-     * @param requiredAmount Required amount
-     * @return true if sufficient balance exists, false otherwise
-     */
-    public boolean hasSufficientBalance(String asset, BigDecimal requiredAmount) {
-        Optional<Balance> balance = getBalance(asset);
-
-        if (balance.isEmpty()) {
-            logger.warn("Asset {} not found in account balances", asset);
-            return false;
-        }
-
-        BigDecimal free = balance.get().getFree();
-        boolean sufficient = free.compareTo(requiredAmount) >= 0;
-
-        logger.debug("Balance check for {}: required={}, free={}, sufficient={}",
-            asset, requiredAmount, free, sufficient);
-
-        return sufficient;
-    }
-
-    /**
-     * Convert BalanceInfo DTO to Balance domain model.
-     *
-     * @param balanceInfo BalanceInfo from API response
-     * @return Balance domain model
-     */
-    private Balance convertToBalance(AccountResponse.BalanceInfo balanceInfo) {
-        return new Balance(
-            balanceInfo.getAsset(),
-            new BigDecimal(balanceInfo.getFree()),
-            new BigDecimal(balanceInfo.getLocked())
-        );
     }
 }

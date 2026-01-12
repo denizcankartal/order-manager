@@ -31,12 +31,13 @@ public class OrderValidator {
     /**
      * Validate order parameters and return adjusted values.
      *
-     * @param symbol     Trading symbol (e.g., "BTCUSDT")
-     * @param side       Order side (BUY/SELL)
-     * @param quantity   Order quantity
-     * @param price      Order price
-     * @param symbolInfo Symbol information with filters
-     * @param referencePrice Current market price used for PERCENT_PRICE_BY_SIDE (can be null to skip)
+     * @param symbol         Trading symbol (e.g., "BTCUSDT")
+     * @param side           Order side (BUY/SELL)
+     * @param quantity       Order quantity
+     * @param price          Order price
+     * @param symbolInfo     Symbol information with filters
+     * @param referencePrice Current market price used for PERCENT_PRICE_BY_SIDE
+     *                       (can be null to skip)
      * @return Validation result with adjusted values or errors
      */
     public static OrderValidationResult validate(
@@ -100,7 +101,8 @@ public class OrderValidator {
 
         PercentPriceBySideFilter percentFilter = symbolInfo.getPercentPriceBySideFilter();
         if (percentFilter != null) {
-            ValidationResult percentResult = validatePercentPriceBySide(adjustedPrice, referencePrice, percentFilter, side);
+            ValidationResult percentResult = validatePercentPriceBySide(adjustedPrice, referencePrice, percentFilter,
+                    side);
             if (!percentResult.isValid()) {
                 errors.addAll(percentResult.getWarnings());
                 return new OrderValidationResult(false, adjustedQty, adjustedPrice, warnings, errors);
@@ -117,7 +119,8 @@ public class OrderValidator {
     /**
      * Validate price against PERCENT_PRICE_BY_SIDE filter bounds.
      *
-     * Does not auto-adjust; fails when out of bounds. If reference price is unavailable,
+     * Does not auto-adjust; fails when out of bounds. If reference price is
+     * unavailable,
      * skip the check with a warning.
      */
     private static ValidationResult validatePercentPriceBySide(

@@ -4,30 +4,23 @@ import com.ordermanager.exception.ConfigurationException;
 
 import io.github.cdimascio.dotenv.Dotenv;
 
-/**
- * Application configuration loaded from environment variables.
- *
- * Required environment variables:
- * - BINANCE_API_KEY: Your Binance testnet API key
- * - BINANCE_API_SECRET: Your Binance testnet API secret
- * Optional environment variables
- * - BINANCE_BASE_URL: Binance API base URL, default:
- * https://testnet.binance.vision
- * - BINANCE_RECV_WINDOW: Request validity window in milliseconds
- * (default: 10000)
- */
 public class AppConfig {
     private static final Dotenv DOTENV = Dotenv.configure().ignoreIfMissing().load();
     private final String apiKey;
     private final String apiSecret;
     private final String baseUrl;
     private final long recvWindow;
+    private final String baseAsset;
+    private final String quoteAsset;
 
-    private AppConfig(String apiKey, String apiSecret, String baseUrl, long recvWindow) {
+    private AppConfig(String apiKey, String apiSecret, String baseUrl, long recvWindow, String baseAsset,
+            String quoteAsset) {
         this.apiKey = apiKey;
         this.apiSecret = apiSecret;
         this.baseUrl = baseUrl;
         this.recvWindow = recvWindow;
+        this.baseAsset = baseAsset;
+        this.quoteAsset = quoteAsset;
     }
 
     /**
@@ -38,8 +31,9 @@ public class AppConfig {
         String apiSecret = getRequiredEnv("BINANCE_API_SECRET");
         String baseUrl = getEnv("BINANCE_BASE_URL", "https://testnet.binance.vision");
         long recvWindow = Long.parseLong(getEnv("BINANCE_RECV_WINDOW", "10000"));
-
-        return new AppConfig(apiKey, apiSecret, baseUrl, recvWindow);
+        String baseAsset = getEnv("BINANCE_BASE_URL", "BTC");
+        String quoteAsset = getEnv("BINANCE_BASE_URL", "USDT");
+        return new AppConfig(apiKey, apiSecret, baseUrl, recvWindow, baseAsset, quoteAsset);
     }
 
     private static String getRequiredEnv(String name) {
@@ -85,13 +79,11 @@ public class AppConfig {
         return recvWindow;
     }
 
-    @Override
-    public String toString() {
-        return "AppConfig{" +
-                "apiKey='***'" +
-                ", apiSecret='***'" +
-                ", baseUrl='" + baseUrl + '\'' +
-                ", recvWindow=" + recvWindow +
-                '}';
+    public String getBaseAsset() {
+        return baseAsset;
+    }
+
+    public String getQuoteAsset() {
+        return quoteAsset;
     }
 }

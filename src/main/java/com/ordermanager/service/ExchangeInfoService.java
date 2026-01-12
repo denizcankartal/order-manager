@@ -4,12 +4,10 @@ import com.ordermanager.client.BinanceRestClient;
 import com.ordermanager.exception.ApiException;
 import com.ordermanager.model.SymbolInfo;
 import com.ordermanager.model.dto.ExchangeInfoResponse;
-import com.ordermanager.model.dto.TickerPriceResponse;
 import com.ordermanager.util.RetryUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.math.BigDecimal;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -53,54 +51,6 @@ public class ExchangeInfoService {
             logger.warn("Symbol {} not found in exchange info cache", symbol);
         }
         return info;
-    }
-
-    /**
-     * Check if a symbol exists in the exchange.
-     *
-     * @param symbol Trading symbol (e.g., "BTCUSDT")
-     * @return true if symbol exists
-     */
-    public boolean symbolExists(String symbol) {
-        ensureInitialized();
-        return symbolCache.containsKey(symbol);
-    }
-
-    /**
-     * Get the latest price for a symbol using the public ticker endpoint.
-     *
-     * @param symbol Trading symbol (e.g., BTCUSDT)
-     * @return Current price as BigDecimal
-     */
-    public BigDecimal getCurrentPrice(String symbol) {
-        String endpoint = String.format("/api/v3/ticker/price?symbol=%s", symbol);
-        TickerPriceResponse response = RetryUtils.executeWithRetry(
-                () -> restClient.get(endpoint, TickerPriceResponse.class),
-                "fetch ticker price",
-                logger);
-
-        return response.getPriceAsBigDecimal();
-    }
-
-    /**
-     * Get all cached symbol names.
-     *
-     * @return Set of all symbol names
-     */
-    public java.util.Set<String> getAllSymbols() {
-        ensureInitialized();
-        return symbolCache.keySet();
-    }
-
-    /**
-     * Refresh the exchange info cache.
-     *
-     * Fetches latest exchange information from Binance and updates cache.
-     * Should be called periodically to keep filters up-to-date.
-     */
-    public void refresh() {
-        logger.info("Refreshing exchange info cache");
-        loadExchangeInfo();
     }
 
     /**

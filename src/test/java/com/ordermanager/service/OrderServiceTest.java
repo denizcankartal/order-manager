@@ -88,8 +88,12 @@ class OrderServiceTest {
         when(stateManager.getOrder("cli-1")).thenReturn(existing);
 
         OrderResponse resp = new OrderResponse();
-        resp.setStatus(OrderStatus.CANCELED.name());
+        resp.setOrderId(55L);
+        resp.setClientOrderId("cli-1");
+        resp.setStatus(OrderStatus.NEW.name());
         resp.setExecutedQty("0");
+        when(restClient.getSigned(eq("/api/v3/order"), anyMap(), eq(OrderResponse.class)))
+                .thenReturn(resp);
         when(restClient.deleteSigned(eq("/api/v3/order"), anyMap(), eq(OrderResponse.class)))
                 .thenReturn(resp);
 
@@ -110,6 +114,8 @@ class OrderServiceTest {
         when(stateManager.getOrder("cli-1")).thenReturn(existing);
 
         OrderResponse resp = new OrderResponse();
+        resp.setOrderId(77L);
+        resp.setClientOrderId("cli-1");
         resp.setStatus(OrderStatus.FILLED.name());
         resp.setExecutedQty("0.1");
         when(restClient.getSigned(eq("/api/v3/order"), anyMap(), eq(OrderResponse.class)))

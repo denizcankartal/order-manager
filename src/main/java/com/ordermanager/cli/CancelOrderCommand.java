@@ -19,7 +19,8 @@ public class CancelOrderCommand implements Callable<Integer> {
     @Override
     public Integer call() {
         try {
-            Order order = parent.getOrderService().cancelOrder(orderId);
+            parent.configureLogging();
+            Order order = parent.getOrderService().cancelOrder(orderId, parent.getSymbol());
 
             System.out.printf(
                     "Order canceled: id=%s clientId=%s symbol=%s status=%s executedQty=%s%n",
@@ -28,6 +29,11 @@ public class CancelOrderCommand implements Callable<Integer> {
                     order.getSymbol(),
                     order.getStatus(),
                     order.getExecutedQty());
+
+            System.out.printf("{\"orderId\": %s, \"clientOrderId\": \"%s\", \"status\": \"%s\"}%n",
+                    order.getOrderId(),
+                    order.getClientOrderId(),
+                    order.getStatus());
 
             return 0;
 

@@ -12,19 +12,14 @@ This is a CLI for managing Spot LIMIT orders on Binance Spot Testnet, enabling u
 ### Build and Run
 
 ```bash
-# Compile the project
-mvn clean compile
+# Compile and test
+mvn clean test
 
 # Package the project as JAR
 mvn clean package
 
 # Configure environment variables 
 cp .env.example .env
-
-# Run tests
-mvn test
-mvn test -X # Debug mode
-mvn test -Dtest=OrderTest # Specific test class
 
 # Run
 java -jar target/order-manager-1.0.0.jar --help
@@ -47,6 +42,9 @@ order_manager list [--symbol BTCUSDT]
 
 # Show order details given orderId or origClientOrderId
 order_manager show --id <orderId|origClientOrderId>
+
+# Verbose HTTP logging (redacted signatures)
+order_manager --verbose add --side BUY --symbol BTCUSDT --price 10000 --qty 0.001
 ```
 
 ### Example Session
@@ -100,6 +98,13 @@ order_manager cancel --id 123456
 Order canceled successfully
 {"orderId": 123456, "status": "CANCELED"}
 --
+
+## Design Notes
+- State: in-memory `StateManager` keyed by `clientOrderId`, persisted asynchronously to `~/.order-manager/orders.json`.
+- Reconciliation: each list/show/refresh call hits Binance REST first, then reconciles local state (missing active orders are refetched).
+- Validation: PRICE_FILTER, LOT_SIZE auto-round down with warnings; MIN_NOTIONAL and PERCENT_PRICE_BY_SIDE fail fast with clear messages.
+- Reliability: signed requests use HMAC-SHA256; retries with backoff 1/2/4/8/16s on 418/429/5xx/-1021; a timestamp error triggers an immediate time resync.
+- Logging: `--verbose` raises logging to DEBUG and redacts signatures in URLs.
 ```
 
 ## Architecture

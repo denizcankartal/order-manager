@@ -8,7 +8,7 @@ import java.util.concurrent.Callable;
 
 import com.ordermanager.model.Order;
 
-@Command(name = "show", description = "Show detailed information for a specific order (always syncs with exchange)")
+@Command(name = "show", description = "Show detailed information for a specific order")
 public class ShowOrderCommand implements Callable<Integer> {
     @ParentCommand
     private OrderManagerCLI parent;
@@ -19,20 +19,8 @@ public class ShowOrderCommand implements Callable<Integer> {
     @Override
     public Integer call() {
         try {
-            Order order = parent.getOrderService().getOrder(orderId);
-
-            if (order == null) {
-                System.err.println("Order not found: " + orderId);
-                return 1;
-            }
-
-            try {
-                parent.getOrderService().syncWithExchange(order.getSymbol(), orderId);
-                order = parent.getOrderService().getOrder(orderId);
-            } catch (Exception e) {
-                System.err.println("Warning: Could not sync with exchange: " + e.getMessage());
-                System.err.println("Showing local state (may be stale):");
-            }
+            parent.configureLogging();
+            Order order = parent.getOrderService().fetchAndUpdateOrder(orderId, parent.getSymbol());
 
             System.out.println("{");
             System.out.printf("  \"orderId\": %d,%n", order.getOrderId());

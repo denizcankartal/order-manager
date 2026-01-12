@@ -11,7 +11,7 @@ import java.util.function.Supplier;
  */
 public class RetryUtils {
 
-    private static final int MAX_RETRY_ATTEMPTS = 3;
+    private static final int MAX_RETRY_ATTEMPTS = 5;
     private static final long INITIAL_BACKOFF_MS = 1000; // 1 second
 
     private RetryUtils() {
@@ -25,6 +25,8 @@ public class RetryUtils {
      * - 1st retry: 1 second delay
      * - 2nd retry: 2 seconds delay
      * - 3rd retry: 4 seconds delay
+     * - 4th retry: 8 seconds delay
+     * - 5th retry: 16 seconds delay
      *
      * @param apiCall   The API call to execute
      * @param operation Description of the operation (for logging)

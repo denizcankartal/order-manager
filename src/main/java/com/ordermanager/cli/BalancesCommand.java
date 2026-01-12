@@ -6,7 +6,7 @@ import picocli.CommandLine.ParentCommand;
 import java.util.List;
 import java.util.concurrent.Callable;
 
-import com.ordermanager.model.Balance;
+import com.ordermanager.model.dto.AccountResponse.BalanceInfo;
 
 @Command(name = "balances", description = "Print free/locked balances for relevant assets")
 public class BalancesCommand implements Callable<Integer> {
@@ -16,18 +16,18 @@ public class BalancesCommand implements Callable<Integer> {
     @Override
     public Integer call() {
         try {
-            List<Balance> balances = parent.getBalanceService().getNonZeroBalances();
+            parent.configureLogging();
+            String[] assets = { parent.getBaseAsset(), parent.getQuoteAsset() };
+            List<BalanceInfo> balances = parent.getBalanceService().getBalances(assets);
 
-            System.out.printf("%-10s %-20s %-20s %-20s%n",
-                    "ASSET", "FREE", "LOCKED", "TOTAL");
+            System.out.printf("%-10s %-20s %-20s%n", "ASSET", "FREE", "LOCKED");
             System.out.println("---------------------------------------------------------------------");
 
-            for (Balance b : balances) {
-                System.out.printf("%-10s %-20s %-20s %-20s%n",
+            for (BalanceInfo b : balances) {
+                System.out.printf("%-10s %-20s %-20sn",
                         b.getAsset(),
                         b.getFree(),
-                        b.getLocked(),
-                        b.getTotal());
+                        b.getLocked());
             }
 
             return 0;

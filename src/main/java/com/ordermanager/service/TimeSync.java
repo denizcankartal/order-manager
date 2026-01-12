@@ -75,11 +75,4 @@ public class TimeSync {
     public long getServerTime() {
         return System.currentTimeMillis() + timeOffset;
     }
-
-    /**
-     * Get the calculated time offset in milliseconds.
-     */
-    public long getTimeOffset() {
-        return timeOffset;
-    }
 }

@@ -63,7 +63,7 @@ public class StateManager {
         }
 
         logger.debug("Added order: clientOrderId={}, orderId={}, status={}",
-            order.getClientOrderId(), order.getOrderId(), order.getStatus());
+                order.getClientOrderId(), order.getOrderId(), order.getStatus());
     }
 
     /**
@@ -86,7 +86,7 @@ public class StateManager {
         }
 
         logger.debug("Updated order: clientOrderId={}, orderId={}, status={}",
-            order.getClientOrderId(), order.getOrderId(), order.getStatus());
+                order.getClientOrderId(), order.getOrderId(), order.getStatus());
     }
 
     /**
@@ -138,36 +138,15 @@ public class StateManager {
     }
 
     /**
-     * Get all orders.
-     *
-     * @return List of all orders (copy, safe to modify)
-     */
-    public List<Order> getAllOrders() {
-        return new ArrayList<>(ordersByClientId.values());
-    }
-
-    /**
-     * Get orders by symbol.
-     *
-     * @param symbol Trading pair (e.g., "BTCUSDT")
-     * @return List of orders for this symbol
-     */
-    public List<Order> getOrdersBySymbol(String symbol) {
-        return ordersByClientId.values().stream()
-            .filter(order -> order.getSymbol().equals(symbol))
-            .collect(Collectors.toList());
-    }
-
-    /**
      * Get open orders (NEW or PARTIALLY_FILLED).
      *
      * @return List of open orders
      */
     public List<Order> getOpenOrders() {
         return ordersByClientId.values().stream()
-            .filter(order -> order.getStatus() == OrderStatus.NEW ||
-                            order.getStatus() == OrderStatus.PARTIALLY_FILLED)
-            .collect(Collectors.toList());
+                .filter(order -> order.getStatus() == OrderStatus.NEW ||
+                        order.getStatus() == OrderStatus.PARTIALLY_FILLED)
+                .collect(Collectors.toList());
     }
 
     /**
@@ -178,10 +157,10 @@ public class StateManager {
      */
     public List<Order> getOpenOrders(String symbol) {
         return ordersByClientId.values().stream()
-            .filter(order -> order.getSymbol().equals(symbol))
-            .filter(order -> order.getStatus() == OrderStatus.NEW ||
-                            order.getStatus() == OrderStatus.PARTIALLY_FILLED)
-            .collect(Collectors.toList());
+                .filter(order -> order.getSymbol().equals(symbol))
+                .filter(order -> order.getStatus() == OrderStatus.NEW ||
+                        order.getStatus() == OrderStatus.PARTIALLY_FILLED)
+                .collect(Collectors.toList());
     }
 
     /**
@@ -198,7 +177,7 @@ public class StateManager {
         if (order != null && order.getOrderId() != null) {
             clientIdByOrderId.remove(order.getOrderId());
             logger.debug("Removed order: clientOrderId={}, orderId={}",
-                clientOrderId, order.getOrderId());
+                    clientOrderId, order.getOrderId());
         }
 
         return order;
@@ -213,9 +192,9 @@ public class StateManager {
      */
     public int pruneTerminalOrders() {
         List<String> toRemove = ordersByClientId.values().stream()
-            .filter(Order::isTerminal)
-            .map(Order::getClientOrderId)
-            .collect(Collectors.toList());
+                .filter(Order::isTerminal)
+                .map(Order::getClientOrderId)
+                .collect(Collectors.toList());
 
         toRemove.forEach(this::removeOrder);
 
@@ -251,31 +230,5 @@ public class StateManager {
         orders.values().forEach(this::addOrder);
 
         logger.info("Loaded {} orders into state", orders.size());
-    }
-
-    /**
-     * Clear all state.
-     */
-    public void clear() {
-        int count = ordersByClientId.size();
-        ordersByClientId.clear();
-        clientIdByOrderId.clear();
-        logger.info("Cleared {} orders from state", count);
-    }
-
-    /**
-     * Get order count.
-     */
-    public int getOrderCount() {
-        return ordersByClientId.size();
-    }
-
-    /**
-     * Get open order count.
-     */
-    public int getOpenOrderCount() {
-        return (int) ordersByClientId.values().stream()
-            .filter(Order::isActive)
-            .count();
     }
 }
