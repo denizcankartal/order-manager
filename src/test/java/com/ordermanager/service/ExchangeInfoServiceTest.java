@@ -6,6 +6,7 @@ import com.ordermanager.model.dto.ExchangeInfoResponse;
 import com.ordermanager.model.filter.PriceFilter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assumptions;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 

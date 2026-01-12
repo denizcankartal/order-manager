@@ -449,6 +449,29 @@ class OrderValidatorTest {
                 assertTrue(result.getWarnings().get(0).contains("Reference price unavailable"));
         }
 
+        @Test
+        void testPercentPriceBySide_SellOutOfRange_Fails() {
+                PercentPriceBySideFilter filter = new PercentPriceBySideFilter();
+                filter.setBidMultiplierDown(new BigDecimal("0.9"));
+                filter.setBidMultiplierUp(new BigDecimal("1.1"));
+                filter.setAskMultiplierDown(new BigDecimal("0.9"));
+                filter.setAskMultiplierUp(new BigDecimal("1.1"));
+
+                SymbolInfo symbolInfo = createSymbolInfo("BTCUSDT", "TRADING",
+                                null, null, null, filter);
+
+                OrderValidator.OrderValidationResult result = OrderValidator.validate(
+                                "BTCUSDT",
+                                OrderSide.SELL,
+                                new BigDecimal("0.001"),
+                                new BigDecimal("70"), // 30% below ref (violates askMultiplierDown)
+                                symbolInfo,
+                                new BigDecimal("100"));
+
+                assertFalse(result.isValid());
+                assertTrue(result.getErrors().get(0).contains("out of allowed range"));
+        }
+
         private SymbolInfo createSymbolInfo(String symbol, String status,
                         PriceFilter priceFilter,
                         LotSizeFilter lotSizeFilter,
