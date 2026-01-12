@@ -31,8 +31,8 @@ public class AppConfig {
         String apiSecret = getRequiredEnv("BINANCE_API_SECRET");
         String baseUrl = getEnv("BINANCE_BASE_URL", "https://testnet.binance.vision");
         long recvWindow = Long.parseLong(getEnv("BINANCE_RECV_WINDOW", "10000"));
-        String baseAsset = getEnv("BINANCE_BASE_URL", "BTC");
-        String quoteAsset = getEnv("BINANCE_BASE_URL", "USDT");
+        String baseAsset = getEnv("BASE_ASSET", "BTC");
+        String quoteAsset = getEnv("QUOTE_ASSET", "USDT");
         return new AppConfig(apiKey, apiSecret, baseUrl, recvWindow, baseAsset, quoteAsset);
     }
 
