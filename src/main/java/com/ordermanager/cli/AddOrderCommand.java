@@ -1,17 +1,18 @@
 package com.ordermanager.cli;
 
+import com.ordermanager.model.Order;
 import com.ordermanager.model.OrderSide;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
+import picocli.CommandLine.ParentCommand;
 
 import java.math.BigDecimal;
 import java.util.concurrent.Callable;
 
-/**
- * Command to place a new LIMIT order
- */
 @Command(name = "add", description = "Place a new LIMIT order")
 public class AddOrderCommand implements Callable<Integer> {
+    @ParentCommand
+    private OrderManagerCLI parent;
 
     @Option(names = { "--side" }, required = true, description = "Order side: BUY or SELL")
     private OrderSide side;
@@ -29,16 +30,25 @@ public class AddOrderCommand implements Callable<Integer> {
     private String clientOrderId;
 
     @Override
-    public Integer call() throws Exception {
-        // TODO: IMPLMENT THIS LATER
-        System.out.println("Add order command - implementation pending");
-        System.out.println("Side: " + side);
-        System.out.println("Symbol: " + symbol);
-        System.out.println("Price: " + price);
-        System.out.println("Quantity: " + quantity);
-        if (clientOrderId != null) {
-            System.out.println("Client Order ID: " + clientOrderId);
+    public Integer call() {
+        try {
+            Order order = parent.getOrderService().placeOrder(symbol, side, price, quantity, clientOrderId);
+
+            System.out.printf(
+                    "Order placed: id=%s clientId=%s side=%s %s %s @ %s status=%s%n",
+                    order.getOrderId(),
+                    order.getClientOrderId(),
+                    order.getSide(),
+                    order.getOrigQty(),
+                    order.getSymbol(),
+                    order.getPrice(),
+                    order.getStatus());
+
+            return 0;
+
+        } catch (Exception e) {
+            System.err.println("Failed to place order: " + e.getMessage());
+            return 1;
         }
-        return 0;
     }
 }

@@ -102,15 +102,13 @@ public class BinanceApiService {
      *
      * Endpoint: DELETE /api/v3/order (SIGNED)
      *
-     * 
      * @param symbol        Trading pair
      * @param orderId       Exchange order ID (optional if clientOrderId provided)
      * @param clientOrderId Client order ID (optional if orderId provided)
      * @return Order response with cancellation status
      */
     public OrderResponse cancelOrder(String symbol, Long orderId, String clientOrderId) {
-        logger.debug("Canceling order: symbol={}, orderId={}, clientOrderId={}",
-                symbol, orderId, clientOrderId);
+        logger.debug("Canceling order: symbol={}, orderId={}, clientOrderId={}", symbol, orderId, clientOrderId);
 
         Map<String, String> params = new HashMap<>();
         params.put("symbol", symbol);

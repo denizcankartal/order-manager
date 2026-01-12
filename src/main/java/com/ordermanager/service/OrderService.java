@@ -114,12 +114,11 @@ public class OrderService {
      *
      * Idempotent: Canceling an already-canceled order returns success.
      *
-     * @param symbol Trading pair
-     * @param id     Order ID (exchange orderId or clientOrderId)
+     * @param id Order ID (exchange orderId or clientOrderId)
      * @return Canceled order
      */
-    public Order cancelOrder(String symbol, String id) {
-        logger.info("Canceling order: symbol={}, id={}", symbol, id);
+    public Order cancelOrder(String id) {
+        logger.info("Canceling order: id={}", id);
 
         Order order = stateManager.getOrder(id);
 
@@ -133,7 +132,7 @@ public class OrderService {
         }
 
         OrderResponse response = apiService.cancelOrder(
-                symbol,
+                order.getSymbol(),
                 order.getOrderId(),
                 order.getClientOrderId());
 
