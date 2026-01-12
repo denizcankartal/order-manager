@@ -5,7 +5,6 @@ import com.ordermanager.model.OrderSide;
 import com.ordermanager.model.OrderStatus;
 import com.ordermanager.model.SymbolInfo;
 import com.ordermanager.model.dto.OrderResponse;
-import com.ordermanager.util.ClientOrderIdGenerator;
 import com.ordermanager.validator.OrderValidator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,7 +56,7 @@ public class OrderService {
 
         String clientOrderId = (userProvidedClientId != null && !userProvidedClientId.isEmpty())
                 ? userProvidedClientId
-                : ClientOrderIdGenerator.generate();
+                : generateClientOrderId();
 
         logger.info("Placing order: {} {} {} @ {}, clientOrderId={}",
                 side, quantity, symbol, price, clientOrderId);
@@ -211,5 +210,10 @@ public class OrderService {
         persister.submitWrite(stateManager.getStateSnapshot());
 
         logger.debug("Order synced from exchange: id={}, status={}", id, localOrder.getStatus());
+    }
+
+    private String generateClientOrderId() {
+        long timestamp = System.currentTimeMillis();
+        return String.format("cli-%d", timestamp);
     }
 }
