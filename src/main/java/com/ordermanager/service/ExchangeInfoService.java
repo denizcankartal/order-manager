@@ -1,8 +1,10 @@
 package com.ordermanager.service;
 
 import com.ordermanager.client.BinanceRestClient;
+import com.ordermanager.exception.ApiException;
 import com.ordermanager.model.SymbolInfo;
 import com.ordermanager.model.dto.ExchangeInfoResponse;
+import com.ordermanager.util.RetryUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -104,7 +106,9 @@ public class ExchangeInfoService {
      */
     private void loadExchangeInfo() {
         try {
-            ExchangeInfoResponse response = restClient.get("/api/v3/exchangeInfo", ExchangeInfoResponse.class);
+            ExchangeInfoResponse response = RetryUtils.executeWithRetry(() ->
+                restClient.get("/api/v3/exchangeInfo", ExchangeInfoResponse.class),
+                "load exchange info", logger);
 
             if (response.getSymbols() == null) {
                 logger.warn("Exchange info response contains no symbols");
@@ -120,8 +124,19 @@ public class ExchangeInfoService {
 
             logger.info("Exchange info cache loaded: {} symbols", symbolCache.size());
 
+        } catch (ApiException e) {
+            logger.error("Failed to load exchange info: error={}", e.getMessage());
+
+            if (e.isRateLimit()) {
+                throw new RuntimeException(
+                        "Rate limit exceeded while loading exchange info. Wait 60 seconds and retry. Error: " + e.getMessage(), e);
+            }
+
+            throw new RuntimeException(String.format(
+                    "Failed to load exchange info: %s (error code: %d)", e.getMessage(), e.getStatusCode()), e);
+
         } catch (Exception e) {
-            logger.error("Failed to load exchange info", e);
+            logger.error("Unexpected error loading exchange info", e);
             throw new RuntimeException("Failed to initialize exchange info cache", e);
         }
     }

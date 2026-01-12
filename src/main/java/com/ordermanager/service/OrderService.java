@@ -1,11 +1,13 @@
 package com.ordermanager.service;
 
 import com.ordermanager.client.BinanceRestClient;
+import com.ordermanager.exception.ApiException;
 import com.ordermanager.model.Order;
 import com.ordermanager.model.OrderSide;
 import com.ordermanager.model.OrderStatus;
 import com.ordermanager.model.SymbolInfo;
 import com.ordermanager.model.dto.OrderResponse;
+import com.ordermanager.util.RetryUtils;
 import com.ordermanager.validator.OrderValidator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -101,21 +103,53 @@ public class OrderService {
             params.put("newClientOrderId", clientOrderId);
         }
 
-        OrderResponse response = restClient.postSigned("/api/v3/order", params, OrderResponse.class);
+        try {
+            OrderResponse response = RetryUtils.executeWithRetry(() ->
+                restClient.postSigned("/api/v3/order", params, OrderResponse.class),
+                "place order", logger);
 
-        order.setOrderId(response.getOrderId());
-        order.setStatus(OrderStatus.valueOf(response.getStatus()));
-        order.setExecutedQty(response.getExecutedQtyAsBigDecimal());
-        order.setTime(response.getTransactTime());
-        order.setUpdateTime(System.currentTimeMillis());
+            order.setOrderId(response.getOrderId());
+            order.setStatus(OrderStatus.valueOf(response.getStatus()));
+            order.setExecutedQty(response.getExecutedQtyAsBigDecimal());
+            order.setTime(response.getTransactTime());
+            order.setUpdateTime(System.currentTimeMillis());
 
-        stateManager.updateOrder(order);
-        persister.submitWrite(stateManager.getStateSnapshot());
+            stateManager.updateOrder(order);
+            persister.submitWrite(stateManager.getStateSnapshot());
 
-        logger.info("Order placed successfully: orderId={}, status={}",
-                order.getOrderId(), order.getStatus());
+            logger.info("Order placed successfully: orderId={}, status={}",
+                    order.getOrderId(), order.getStatus());
 
-        return order;
+            return order;
+
+        } catch (ApiException e) {
+            logger.error("Failed to place order: symbol={}, side={}, price={}, qty={}, error={}",
+                    symbol, side, validatedPrice, validatedQuantity, e.getMessage());
+
+            if (e.isInsufficientBalance()) {
+                String asset = side == OrderSide.BUY ? symbol.substring(symbol.length() - 4) : symbol.substring(0, symbol.length() - 4);
+                throw new IllegalStateException(String.format(
+                        "Insufficient %s balance. Reduce --qty or --price and try again.", asset));
+            }
+
+            if (e.isFilterViolation()) {
+                throw new IllegalArgumentException(String.format(
+                        "Filter violation for %s: %s", symbol, e.getMessage()));
+            }
+
+            if (e.isTimestampError()) {
+                throw new IllegalStateException(
+                        "Clock drift detected. Sync system time and retry. Error: " + e.getMessage());
+            }
+
+            if (e.isRateLimit()) {
+                throw new IllegalStateException(
+                        "Rate limit exceeded. Wait 60 seconds and retry. Error: " + e.getMessage());
+            }
+
+            throw new RuntimeException(String.format(
+                    "Failed to place order: %s (error code: %d)", e.getMessage(), e.getStatusCode()), e);
+        }
     }
 
     /**
@@ -151,19 +185,35 @@ public class OrderService {
             params.put("origClientOrderId", order.getClientOrderId());
         }
 
-        OrderResponse response = restClient.deleteSigned("/api/v3/order", params, OrderResponse.class);
+        try {
+            OrderResponse response = RetryUtils.executeWithRetry(() ->
+                restClient.deleteSigned("/api/v3/order", params, OrderResponse.class),
+                "cancel order", logger);
 
-        order.setStatus(OrderStatus.valueOf(response.getStatus()));
-        order.setExecutedQty(response.getExecutedQtyAsBigDecimal());
-        order.setUpdateTime(System.currentTimeMillis());
+            order.setStatus(OrderStatus.valueOf(response.getStatus()));
+            order.setExecutedQty(response.getExecutedQtyAsBigDecimal());
+            order.setUpdateTime(System.currentTimeMillis());
 
-        stateManager.updateOrder(order);
-        persister.submitWrite(stateManager.getStateSnapshot());
+            stateManager.updateOrder(order);
+            persister.submitWrite(stateManager.getStateSnapshot());
 
-        logger.info("Order canceled: orderId={}, status={}, executedQty={}", order.getOrderId(), order.getStatus(),
-                order.getExecutedQty());
+            logger.info("Order canceled: orderId={}, status={}, executedQty={}", order.getOrderId(), order.getStatus(),
+                    order.getExecutedQty());
 
-        return order;
+            return order;
+
+        } catch (ApiException e) {
+            logger.error("Failed to cancel order: id={}, symbol={}, error={}",
+                    id, order.getSymbol(), e.getMessage());
+
+            if (e.isRateLimit()) {
+                throw new IllegalStateException(
+                        "Rate limit exceeded. Wait 60 seconds and retry. Error: " + e.getMessage());
+            }
+
+            throw new RuntimeException(String.format(
+                    "Failed to cancel order %s: %s (error code: %d)", id, e.getMessage(), e.getStatusCode()), e);
+        }
     }
 
     /**
@@ -227,15 +277,31 @@ public class OrderService {
             params.put("origClientOrderId", localOrder.getClientOrderId());
         }
 
-        OrderResponse response = restClient.getSigned("/api/v3/order", params, OrderResponse.class);
+        try {
+            OrderResponse response = RetryUtils.executeWithRetry(() ->
+                restClient.getSigned("/api/v3/order", params, OrderResponse.class),
+                "sync order", logger);
 
-        localOrder.setStatus(OrderStatus.valueOf(response.getStatus()));
-        localOrder.setExecutedQty(response.getExecutedQtyAsBigDecimal());
-        localOrder.setUpdateTime(System.currentTimeMillis());
-        stateManager.updateOrder(localOrder);
-        persister.submitWrite(stateManager.getStateSnapshot());
+            localOrder.setStatus(OrderStatus.valueOf(response.getStatus()));
+            localOrder.setExecutedQty(response.getExecutedQtyAsBigDecimal());
+            localOrder.setUpdateTime(System.currentTimeMillis());
+            stateManager.updateOrder(localOrder);
+            persister.submitWrite(stateManager.getStateSnapshot());
 
-        logger.debug("Order synced from exchange: id={}, status={}", id, localOrder.getStatus());
+            logger.debug("Order synced from exchange: id={}, status={}", id, localOrder.getStatus());
+
+        } catch (ApiException e) {
+            logger.error("Failed to sync order with exchange: symbol={}, id={}, error={}",
+                    symbol, id, e.getMessage());
+
+            if (e.isRateLimit()) {
+                throw new IllegalStateException(
+                        "Rate limit exceeded. Wait 60 seconds and retry. Error: " + e.getMessage());
+            }
+
+            throw new RuntimeException(String.format(
+                    "Failed to sync order %s: %s (error code: %d)", id, e.getMessage(), e.getStatusCode()), e);
+        }
     }
 
     private String generateClientOrderId() {

@@ -1,8 +1,10 @@
 package com.ordermanager.service;
 
 import com.ordermanager.client.BinanceRestClient;
+import com.ordermanager.exception.ApiException;
 import com.ordermanager.model.Balance;
 import com.ordermanager.model.dto.AccountResponse;
+import com.ordermanager.util.RetryUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,15 +42,35 @@ public class BalanceService {
     public List<Balance> getAllBalances() {
         logger.debug("Fetching all balances");
 
-        AccountResponse accountResponse = restClient.getSigned("/api/v3/account", new HashMap<>(), AccountResponse.class);
+        try {
+            AccountResponse accountResponse = RetryUtils.executeWithRetry(() ->
+                restClient.getSigned("/api/v3/account", new HashMap<>(), AccountResponse.class),
+                "fetch account balances", logger);
 
-        List<Balance> balances = accountResponse.getBalances().stream()
-            .map(this::convertToBalance)
-            .collect(Collectors.toList());
+            List<Balance> balances = accountResponse.getBalances().stream()
+                .map(this::convertToBalance)
+                .collect(Collectors.toList());
 
-        logger.info("Fetched {} balances", balances.size());
+            logger.info("Fetched {} balances", balances.size());
 
-        return balances;
+            return balances;
+
+        } catch (ApiException e) {
+            logger.error("Failed to fetch account balances: error={}", e.getMessage());
+
+            if (e.isRateLimit()) {
+                throw new IllegalStateException(
+                        "Rate limit exceeded. Wait 60 seconds and retry. Error: " + e.getMessage());
+            }
+
+            if (e.isTimestampError()) {
+                throw new IllegalStateException(
+                        "Clock drift detected. Sync system time and retry. Error: " + e.getMessage());
+            }
+
+            throw new RuntimeException(String.format(
+                    "Failed to fetch account balances: %s (error code: %d)", e.getMessage(), e.getStatusCode()), e);
+        }
     }
 
     /**
