@@ -1,6 +1,4 @@
-package com.ordermanager.service;
-
-import com.ordermanager.model.Order;
+package com.ordermanager.model;
 
 import java.util.Collections;
 import java.util.List;

@@ -5,6 +5,7 @@ import com.ordermanager.exception.ApiException;
 import com.ordermanager.model.Order;
 import com.ordermanager.model.OrderSide;
 import com.ordermanager.model.OrderStatus;
+import com.ordermanager.model.PlaceOrderResult;
 import com.ordermanager.model.SymbolInfo;
 import com.ordermanager.model.dto.OrderResponse;
 import com.ordermanager.model.dto.TickerPriceResponse;
@@ -121,8 +122,6 @@ public class OrderService {
             stateManager.updateOrder(order);
             persister.submitWrite(stateManager.getStateSnapshot());
 
-            logger.info("Order Response: {}", response);
-
             return new PlaceOrderResult(order, validation.getWarnings());
 
         } catch (ApiException e) {
@@ -214,8 +213,6 @@ public class OrderService {
 
             stateManager.updateOrder(order);
             persister.submitWrite(stateManager.getStateSnapshot());
-
-            logger.info("Order Delete Response={}", response);
 
             return order;
 

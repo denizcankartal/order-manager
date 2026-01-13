@@ -47,9 +47,9 @@ public class ListOrdersCommand implements Callable<Integer> {
                         o.getClientOrderId(),
                         o.getSide(),
                         o.getSymbol(),
-                        o.getPrice(),
-                        o.getOrigQty(),
-                        o.getExecutedQty(),
+                        o.getPrice().toPlainString(),
+                        o.getOrigQty().toPlainString(),
+                        o.getExecutedQty().toPlainString(),
                         o.getStatus(),
                         formatted);
 

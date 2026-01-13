@@ -73,12 +73,9 @@ public class StatePersistence {
             return new HashMap<>();
         }
 
-        logger.debug("Loading orders from {}", stateFilePath);
-
         OrderState state = objectMapper.readValue(file, OrderState.class);
 
-        logger.info("Loaded {} orders from disk (version: {}, lastUpdate: {})",
-                state.getOrders().size(), state.getVersion(), state.getLastUpdate());
+        logger.info("Loaded {} orders from disk", state.getOrders().size());
 
         return state.getOrders();
     }

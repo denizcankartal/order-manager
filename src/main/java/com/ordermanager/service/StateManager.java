@@ -62,8 +62,8 @@ public class StateManager {
             clientIdByOrderId.put(order.getOrderId(), order.getClientOrderId());
         }
 
-        logger.debug("Added order: clientOrderId={}, orderId={}, status={}",
-                order.getClientOrderId(), order.getOrderId(), order.getStatus());
+        logger.info("Added order: clientOrderId={}, orderId={}, status={}", order.getClientOrderId(),
+                order.getOrderId(), order.getStatus());
     }
 
     /**
@@ -85,8 +85,8 @@ public class StateManager {
             clientIdByOrderId.put(order.getOrderId(), order.getClientOrderId());
         }
 
-        logger.debug("Updated order: clientOrderId={}, orderId={}, status={}",
-                order.getClientOrderId(), order.getOrderId(), order.getStatus());
+        logger.info("Updated order: clientOrderId={}, orderId={}, status={}", order.getClientOrderId(),
+                order.getOrderId(), order.getStatus());
     }
 
     /**

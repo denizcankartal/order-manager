@@ -44,7 +44,6 @@ public class AsyncStatePersister {
     public void start() {
         if (running.compareAndSet(false, true)) {
             writerThread.submit(this::writeLoop);
-            logger.info("AsyncStatePersister started");
         }
     }
 
@@ -55,8 +54,6 @@ public class AsyncStatePersister {
      * Drains queue to get latest snapshot before writing (deduplication).
      */
     private void writeLoop() {
-        logger.debug("Write loop started");
-
         while (running.get() || !writeQueue.isEmpty()) {
             try {
                 // Block waiting for next snapshot
