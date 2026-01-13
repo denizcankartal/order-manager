@@ -227,8 +227,11 @@ public class StateManager {
         ordersByClientId.clear();
         clientIdByOrderId.clear();
 
-        orders.values().forEach(this::addOrder);
+        orders.values().stream()
+                .filter(Objects::nonNull)
+                .filter(order -> !order.isTerminal())
+                .forEach(this::addOrder);
 
-        logger.info("Loaded {} orders into state", orders.size());
+        logger.info("Loaded {} orders into state", ordersByClientId.size());
     }
 }

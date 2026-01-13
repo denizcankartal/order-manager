@@ -227,6 +227,8 @@ public class OrderService {
         Order order = stateManager.getOrder(id);
         if (order != null && order.isTerminal()) {
             logger.info("Order already in terminal state: {}, status={}", id, order.getStatus());
+            stateManager.removeOrder(order.getClientOrderId());
+            persister.submitWrite(stateManager.getStateSnapshot());
             return order;
         }
 
@@ -234,6 +236,8 @@ public class OrderService {
 
         if (order.isTerminal()) {
             logger.info("Order already in terminal state: {}, status={}", id, order.getStatus());
+            stateManager.removeOrder(order.getClientOrderId());
+            persister.submitWrite(stateManager.getStateSnapshot());
             return order;
         }
 
@@ -257,7 +261,11 @@ public class OrderService {
             order.setExecutedQty(response.getExecutedQtyAsBigDecimal());
             order.setUpdateTime(System.currentTimeMillis());
 
-            stateManager.updateOrder(order);
+            if (order.isTerminal()) {
+                stateManager.removeOrder(order.getClientOrderId());
+            } else {
+                stateManager.updateOrder(order);
+            }
             persister.submitWrite(stateManager.getStateSnapshot());
 
             return order;
