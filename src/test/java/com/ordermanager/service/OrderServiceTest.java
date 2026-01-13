@@ -78,6 +78,20 @@ class OrderServiceTest {
         }
 
         @Test
+        void cancelOrder_idempotentWhenAlreadyFilled() {
+                Order existing = new Order("cli-2", "BTCUSDT", OrderSide.SELL,
+                                new BigDecimal("200"), new BigDecimal("0.2"));
+                existing.setStatus(OrderStatus.FILLED);
+                existing.setOrderId(88L);
+                when(stateManager.getOrder("cli-2")).thenReturn(existing);
+
+                Order result = service.cancelOrder("cli-2", "BTCUSDT");
+
+                assertEquals(OrderStatus.FILLED, result.getStatus());
+                verify(restClient, never()).deleteSigned(anyString(), anyMap(), any());
+        }
+
+        @Test
         void cancelOrder_usesOrderIdWhenPresent() {
                 Order existing = new Order("cli-1", "BTCUSDT", OrderSide.BUY,
                                 new BigDecimal("100"), new BigDecimal("0.1"));
