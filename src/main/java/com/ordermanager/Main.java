@@ -12,6 +12,7 @@ import com.ordermanager.service.ExchangeInfoService;
 import com.ordermanager.service.OrderService;
 import com.ordermanager.service.StateManager;
 import com.ordermanager.service.TimeSync;
+import com.ordermanager.service.UserDataStreamService;
 
 import ch.qos.logback.classic.Level;
 import okhttp3.OkHttpClient;
@@ -31,6 +32,7 @@ public class Main {
         StatePersistence persistence = null;
         AsyncStatePersister statePersister = null;
         BinanceRestClient restClient = null;
+        UserDataStreamService userDataStreamService = null;
 
         try {
             configureLogLevel(args);
@@ -56,7 +58,11 @@ public class Main {
             statePersister = new AsyncStatePersister(persistence);
             statePersister.start();
 
-            OrderService orderService = new OrderService(restClient, stateManager, statePersister, exchangeInfoService);
+            OrderService orderService = new OrderService(restClient, stateManager, statePersister, exchangeInfoService,
+                    config.getBaseAsset(), config.getQuoteAsset());
+
+            userDataStreamService = new UserDataStreamService(restClient, stateManager, statePersister,
+                    config.getWsBaseUrl(), config.getUserStreamKeepAliveMinutes());
 
             try {
                 orderService.refreshOpenOrders();
@@ -65,10 +71,13 @@ public class Main {
             }
 
             int exitCode = new CommandLine(new OrderManagerCLI(balanceService, orderService, exchangeInfoService,
-                    config.getBaseAsset(), config.getQuoteAsset()))
+                    userDataStreamService, config.getBaseAsset(), config.getQuoteAsset()))
                     .execute(args);
 
             logger.debug("Command completed with exit code: {}", exitCode);
+            if (userDataStreamService != null) {
+                userDataStreamService.stop();
+            }
             statePersister.shutdown(5);
             restClient.shutdown();
 
@@ -86,6 +95,13 @@ public class Main {
                     statePersister.shutdown(5);
                 } catch (Exception cleanupError) {
                     logger.error("Error during emergency cleanup", cleanupError);
+                }
+            }
+            if (userDataStreamService != null) {
+                try {
+                    userDataStreamService.stop();
+                } catch (Exception cleanupError) {
+                    logger.error("Error during user stream cleanup", cleanupError);
                 }
             }
             if (restClient != null) {

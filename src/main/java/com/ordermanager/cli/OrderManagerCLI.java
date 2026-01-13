@@ -3,6 +3,7 @@ package com.ordermanager.cli;
 import com.ordermanager.service.BalanceService;
 import com.ordermanager.service.ExchangeInfoService;
 import com.ordermanager.service.OrderService;
+import com.ordermanager.service.UserDataStreamService;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,13 +16,15 @@ import picocli.CommandLine.Command;
         AddOrderCommand.class,
         CancelOrderCommand.class,
         ListOrdersCommand.class,
-        ShowOrderCommand.class
+        ShowOrderCommand.class,
+        StreamCommand.class
 })
 public class OrderManagerCLI implements Runnable {
 
     private final BalanceService balanceService;
     private final OrderService orderService;
     private final ExchangeInfoService exchangeInfoService;
+    private final UserDataStreamService userDataStreamService;
     private final String baseAsset;
     private final String quoteAsset;
 
@@ -29,10 +32,12 @@ public class OrderManagerCLI implements Runnable {
     private boolean verbose;
 
     public OrderManagerCLI(BalanceService balanceService, OrderService orderService,
-            ExchangeInfoService exchangeInfoService, String baseAsset, String quotedAsset) {
+            ExchangeInfoService exchangeInfoService, UserDataStreamService userDataStreamService, String baseAsset,
+            String quotedAsset) {
         this.balanceService = balanceService;
         this.orderService = orderService;
         this.exchangeInfoService = exchangeInfoService;
+        this.userDataStreamService = userDataStreamService;
         this.quoteAsset = quotedAsset;
         this.baseAsset = baseAsset;
     }
@@ -47,6 +52,10 @@ public class OrderManagerCLI implements Runnable {
 
     public ExchangeInfoService getExchangeInfoService() {
         return exchangeInfoService;
+    }
+
+    public UserDataStreamService getUserDataStreamService() {
+        return userDataStreamService;
     }
 
     public boolean isVerbose() {

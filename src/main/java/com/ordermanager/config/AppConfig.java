@@ -9,18 +9,22 @@ public class AppConfig {
     private final String apiKey;
     private final String apiSecret;
     private final String baseUrl;
+    private final String wsBaseUrl;
     private final long recvWindow;
     private final String baseAsset;
     private final String quoteAsset;
+    private final int userStreamKeepAliveMinutes;
 
-    private AppConfig(String apiKey, String apiSecret, String baseUrl, long recvWindow, String baseAsset,
-            String quoteAsset) {
+    private AppConfig(String apiKey, String apiSecret, String baseUrl, String wsBaseUrl, long recvWindow,
+            String baseAsset, String quoteAsset, int userStreamKeepAliveMinutes) {
         this.apiKey = apiKey;
         this.apiSecret = apiSecret;
         this.baseUrl = baseUrl;
+        this.wsBaseUrl = wsBaseUrl;
         this.recvWindow = recvWindow;
         this.baseAsset = baseAsset;
         this.quoteAsset = quoteAsset;
+        this.userStreamKeepAliveMinutes = userStreamKeepAliveMinutes;
     }
 
     /**
@@ -30,10 +34,13 @@ public class AppConfig {
         String apiKey = getRequiredEnv("BINANCE_API_KEY");
         String apiSecret = getRequiredEnv("BINANCE_API_SECRET");
         String baseUrl = getEnv("BINANCE_BASE_URL", "https://testnet.binance.vision");
+        String wsBaseUrl = getEnv("BINANCE_WS_BASE_URL", deriveWsBaseUrl(baseUrl));
         long recvWindow = Long.parseLong(getEnv("BINANCE_RECV_WINDOW", "10000"));
         String baseAsset = getEnv("BASE_ASSET", "BTC");
         String quoteAsset = getEnv("QUOTE_ASSET", "USDT");
-        return new AppConfig(apiKey, apiSecret, baseUrl, recvWindow, baseAsset, quoteAsset);
+        int userStreamKeepAliveMinutes = Integer.parseInt(getEnv("USER_STREAM_KEEPALIVE_MINUTES", "30"));
+        return new AppConfig(apiKey, apiSecret, baseUrl, wsBaseUrl, recvWindow, baseAsset, quoteAsset,
+                userStreamKeepAliveMinutes);
     }
 
     private static String getRequiredEnv(String name) {
@@ -75,6 +82,10 @@ public class AppConfig {
         return baseUrl;
     }
 
+    public String getWsBaseUrl() {
+        return wsBaseUrl;
+    }
+
     public long getRecvWindow() {
         return recvWindow;
     }
@@ -85,5 +96,22 @@ public class AppConfig {
 
     public String getQuoteAsset() {
         return quoteAsset;
+    }
+
+    public int getUserStreamKeepAliveMinutes() {
+        return userStreamKeepAliveMinutes;
+    }
+
+    private static String deriveWsBaseUrl(String baseUrl) {
+        String trimmed = baseUrl != null ? baseUrl.trim() : "";
+        if (trimmed.startsWith("https://")) {
+            trimmed = "wss://" + trimmed.substring("https://".length());
+        } else if (trimmed.startsWith("http://")) {
+            trimmed = "ws://" + trimmed.substring("http://".length());
+        }
+        if (trimmed.endsWith("/")) {
+            trimmed = trimmed.substring(0, trimmed.length() - 1);
+        }
+        return trimmed + "/ws";
     }
 }

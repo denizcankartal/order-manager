@@ -21,7 +21,7 @@ public class BalancesCommand implements Callable<Integer> {
             List<BalanceInfo> balances = parent.getBalanceService().getBalances(assets);
 
             System.out.printf("%-10s %-20s %-20s%n", "ASSET", "FREE", "LOCKED");
-            System.out.println("---------------------------------------------------------------------");
+            System.out.println("----------------------------------------------");
 
             for (BalanceInfo b : balances) {
                 System.out.printf("%-10s %-20s %-20s%n",

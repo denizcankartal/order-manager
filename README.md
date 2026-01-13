@@ -20,6 +20,8 @@ mvn clean package
 
 # Configure environment variables 
 cp .env.example .env
+# Optional: WebSocket base URL (defaults to BINANCE_BASE_URL with ws/wss + /ws)
+# BINANCE_WS_BASE_URL=wss://testnet.binance.vision/ws
 
 # Run
 java -jar target/order-manager-1.0.0.jar --help
@@ -65,6 +67,9 @@ order_manager show --id <orderId|origClientOrderId>
 
 # Verbose HTTP logging (redacted signatures)
 order_manager --verbose add --side BUY --symbol BTCUSDT --price 10000 --qty 0.001
+
+# Long-running user data stream (execution reports)
+order_manager stream
 ```
 
 ### Example Session
@@ -125,6 +130,21 @@ Order canceled successfully
 - Validation: PRICE_FILTER, LOT_SIZE auto-round down with warnings; MIN_NOTIONAL and PERCENT_PRICE_BY_SIDE fail fast with clear messages.
 - Reliability: signed requests use HMAC-SHA256; retries with backoff 1/2/4/8/16s on 418/429/5xx/-1021; a timestamp error triggers an immediate time resync.
 - Logging: `--verbose` raises logging to DEBUG and redacts signatures in URLs.
+- Errors: ambiguous Binance codes (e.g., -2010) are classified by message to avoid mislabeling; unknowns show code + message.
+
+## Optional: User Data Stream
+Use `order_manager stream` to open a user data stream (listenKey) and listen for `executionReport` events to update local state in real time.
+
+Environment:
+```bash
+# User Data Stream (listenKey)
+BINANCE_WS_BASE_URL=wss://stream.testnet.binance.vision/ws
+# Keepalive interval in minutes (default 30)
+USER_STREAM_KEEPALIVE_MINUTES=30
+```
+
+Note: Running `stream` and other commands concurrently can cause last-writer-wins updates to the local state file.
+If you see WebSocket 404 errors, override `BINANCE_WS_BASE_URL` to the correct testnet endpoint.
 ```
 
 ## Architecture

@@ -26,11 +26,6 @@ public class AddOrderCommand implements Callable<Integer> {
     @Option(names = { "--client-id" }, description = "Client order ID (optional, auto-generated if not provided)")
     private String clientOrderId;
 
-    // visible for testing
-    void setParent(OrderManagerCLI parent) {
-        this.parent = parent;
-    }
-
     @Override
     public Integer call() {
         try {

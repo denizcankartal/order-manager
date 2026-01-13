@@ -172,12 +172,22 @@ public class OrderValidator {
 
         if (price.compareTo(minPrice) < 0) {
             return ValidationResult.failure(price,
-                    String.format("Price %s is below minimum %s", price.toPlainString(), minPrice.toPlainString()));
+                    String.format("Price %s is below minimum %s (min=%s, max=%s, tickSize=%s)",
+                            price.toPlainString(),
+                            minPrice.toPlainString(),
+                            minPrice.toPlainString(),
+                            maxPrice.toPlainString(),
+                            tickSize.toPlainString()));
         }
 
         if (price.compareTo(maxPrice) > 0) {
             return ValidationResult.failure(price,
-                    String.format("Price %s exceeds maximum %s", price.toPlainString(), maxPrice.toPlainString()));
+                    String.format("Price %s exceeds maximum %s (min=%s, max=%s, tickSize=%s)",
+                            price.toPlainString(),
+                            maxPrice.toPlainString(),
+                            minPrice.toPlainString(),
+                            maxPrice.toPlainString(),
+                            tickSize.toPlainString()));
         }
 
         BigDecimal adjustedPrice = adjustToTickSize(price, tickSize);
@@ -203,12 +213,22 @@ public class OrderValidator {
 
         if (quantity.compareTo(minQty) < 0) {
             return ValidationResult.failure(quantity,
-                    String.format("Quantity %s is below minimum %s", quantity.toPlainString(), minQty.toPlainString()));
+                    String.format("Quantity %s is below minimum %s (min=%s, max=%s, stepSize=%s)",
+                            quantity.toPlainString(),
+                            minQty.toPlainString(),
+                            minQty.toPlainString(),
+                            maxQty.toPlainString(),
+                            stepSize.toPlainString()));
         }
 
         if (quantity.compareTo(maxQty) > 0) {
             return ValidationResult.failure(quantity,
-                    String.format("Quantity %s exceeds maximum %s", quantity.toPlainString(), maxQty.toPlainString()));
+                    String.format("Quantity %s exceeds maximum %s (min=%s, max=%s, stepSize=%s)",
+                            quantity.toPlainString(),
+                            maxQty.toPlainString(),
+                            minQty.toPlainString(),
+                            maxQty.toPlainString(),
+                            stepSize.toPlainString()));
         }
 
         BigDecimal adjustedQty = adjustToStepSize(quantity, stepSize);

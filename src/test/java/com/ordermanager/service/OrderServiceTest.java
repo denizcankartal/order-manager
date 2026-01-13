@@ -35,7 +35,7 @@ class OrderServiceTest {
                 stateManager = mock(StateManager.class);
                 persister = mock(AsyncStatePersister.class);
                 exchangeInfoService = mock(ExchangeInfoService.class);
-                service = new OrderService(restClient, stateManager, persister, exchangeInfoService);
+                service = new OrderService(restClient, stateManager, persister, exchangeInfoService, "BTC", "USDT");
         }
 
         @Test
@@ -100,6 +100,30 @@ class OrderServiceTest {
                 ArgumentCaptor<Map<String, String>> params = ArgumentCaptor.forClass(Map.class);
                 verify(restClient).deleteSigned(eq("/api/v3/order"), params.capture(), eq(OrderResponse.class));
                 assertEquals("55", params.getValue().get("orderId"));
+        }
+
+        @Test
+        void cancelOrder_remoteTerminalSkipsCancel() {
+                when(stateManager.getOrder("cli-1")).thenReturn(null);
+
+                OrderResponse resp = new OrderResponse();
+                resp.setOrderId(77L);
+                resp.setClientOrderId("cli-1");
+                resp.setSymbol("BTCUSDT");
+                resp.setSide(OrderSide.BUY.name());
+                resp.setStatus(OrderStatus.FILLED.name());
+                resp.setExecutedQty("0.1");
+                resp.setPrice("100");
+                resp.setOrigQty("0.1");
+                resp.setUpdateTime(5L);
+
+                when(restClient.getSigned(eq("/api/v3/order"), anyMap(), eq(OrderResponse.class)))
+                                .thenReturn(resp);
+
+                Order result = service.cancelOrder("cli-1", "BTCUSDT");
+
+                assertEquals(OrderStatus.FILLED, result.getStatus());
+                verify(restClient, never()).deleteSigned(anyString(), anyMap(), any());
         }
 
         @Test

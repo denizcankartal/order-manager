@@ -2,6 +2,7 @@ package com.ordermanager.service;
 
 import com.ordermanager.client.BinanceRestClient;
 import com.ordermanager.exception.ApiException;
+import com.ordermanager.exception.BinanceErrorType;
 import com.ordermanager.model.Order;
 import com.ordermanager.model.OrderSide;
 import com.ordermanager.model.OrderStatus;
@@ -9,6 +10,10 @@ import com.ordermanager.model.PlaceOrderResult;
 import com.ordermanager.model.SymbolInfo;
 import com.ordermanager.model.dto.OrderResponse;
 import com.ordermanager.model.dto.TickerPriceResponse;
+import com.ordermanager.model.filter.LotSizeFilter;
+import com.ordermanager.model.filter.MinNotionalFilter;
+import com.ordermanager.model.filter.PercentPriceBySideFilter;
+import com.ordermanager.model.filter.PriceFilter;
 import com.ordermanager.util.RetryUtils;
 import com.ordermanager.validator.OrderValidator;
 import com.ordermanager.validator.OrderValidator.OrderValidationResult;
@@ -42,15 +47,21 @@ public class OrderService {
     private final StateManager stateManager;
     private final AsyncStatePersister persister;
     private final ExchangeInfoService exchangeInfoService;
+    private final String baseAsset;
+    private final String quoteAsset;
 
     public OrderService(BinanceRestClient restClient,
             StateManager stateManager,
             AsyncStatePersister persister,
-            ExchangeInfoService exchangeInfoService) {
+            ExchangeInfoService exchangeInfoService,
+            String baseAsset,
+            String quoteAsset) {
         this.restClient = restClient;
         this.stateManager = stateManager;
         this.persister = persister;
         this.exchangeInfoService = exchangeInfoService;
+        this.baseAsset = baseAsset;
+        this.quoteAsset = quoteAsset;
     }
 
     /**
@@ -66,6 +77,8 @@ public class OrderService {
     public PlaceOrderResult placeOrder(String symbol, OrderSide side, BigDecimal price, BigDecimal quantity,
             String userProvidedClientId) {
 
+        BigDecimal originalPrice = price;
+        BigDecimal originalQuantity = quantity;
         String clientOrderId = (userProvidedClientId != null && !userProvidedClientId.isEmpty())
                 ? userProvidedClientId
                 : generateClientOrderId();
@@ -80,7 +93,8 @@ public class OrderService {
                     symbol, e.getMessage());
         }
 
-        OrderValidationResult validation = OrderValidator.validate(symbol, side, quantity, price, symbolInfo,
+        OrderValidationResult validation = null;
+        validation = OrderValidator.validate(symbol, side, quantity, price, symbolInfo,
                 referencePrice);
 
         if (!validation.isValid()) {
@@ -130,30 +144,57 @@ public class OrderService {
             persister.submitWrite(stateManager.getStateSnapshot());
             logger.error("Failed to place order: order={}, error={}", order, e.getMessage());
 
-            if (e.isInsufficientBalance()) {
-                String asset = side == OrderSide.BUY ? symbol.substring(symbol.length() - 4)
-                        : symbol.substring(0, symbol.length() - 4);
-                throw new IllegalStateException(String.format(
-                        "Insufficient %s balance. Reduce --qty or --price and try again.", asset));
+            BinanceErrorType type = e.getErrorType();
+            switch (type) {
+                case DUPLICATE_ORDER:
+                    throw new IllegalStateException(String.format(
+                            "Duplicate order sent (clientId=%s). Use a new --client-id.",
+                            clientOrderId));
+                case INSUFFICIENT_BALANCE:
+                    String asset = side == OrderSide.BUY ? quoteAsset : baseAsset;
+                    throw new IllegalStateException(String.format(
+                            "Insufficient %s balance. Reduce --qty or --price and try again.", asset));
+                case FILTER_VIOLATION:
+                    throw new IllegalArgumentException(String.format(
+                            "Filter violation for %s: %s. %s%s",
+                            symbol,
+                            e.getMessage(),
+                            formatSymbolFilters(symbolInfo),
+                            formatValidationAdjustments(validation, originalPrice, originalQuantity)));
+                case INVALID_SYMBOL:
+                    throw new IllegalArgumentException(String.format(
+                            "Invalid symbol %s. Error: %s (code: %d)", symbol, e.getMessage(), e.getStatusCode()));
+                case MARKET_CLOSED:
+                    throw new IllegalStateException(String.format(
+                            "Market is closed for %s. Error: %s (code: %d)", symbol, e.getMessage(),
+                            e.getStatusCode()));
+                case ACCOUNT_TRADING_DISABLED:
+                    throw new IllegalStateException(String.format(
+                            "Trading disabled for this account. Error: %s (code: %d)", e.getMessage(),
+                            e.getStatusCode()));
+                case AUTH_ERROR:
+                    throw new IllegalStateException(String.format(
+                            "Authentication/permissions error. Check BINANCE_API_KEY/BINANCE_API_SECRET. Error: %s (code: %d)",
+                            e.getMessage(), e.getStatusCode()));
+                case INVALID_SIGNATURE:
+                    throw new IllegalStateException(String.format(
+                            "Invalid request signature. Check BINANCE_API_SECRET. Error: %s (code: %d)",
+                            e.getMessage(), e.getStatusCode()));
+                case TIMESTAMP_ERROR:
+                    throw new IllegalStateException(
+                            "Clock drift detected. Sync system time and retry. Error: " + e.getMessage());
+                case RATE_LIMIT:
+                    throw new IllegalStateException(
+                            "Rate limit exceeded. Wait 60 seconds and retry. Error: " + e.getMessage());
+                case NETWORK_ERROR:
+                    throw new IllegalStateException("Network error while placing order: " + e.getMessage());
+                case ORDER_REJECTED:
+                    throw new IllegalStateException(String.format(
+                            "Order rejected: %s (error code: %d)", e.getMessage(), e.getStatusCode()));
+                default:
+                    throw new RuntimeException(String.format(
+                            "Failed to place order: %s (error code: %d)", e.getMessage(), e.getStatusCode()), e);
             }
-
-            if (e.isFilterViolation()) {
-                throw new IllegalArgumentException(String.format(
-                        "Filter violation for %s: %s", symbol, e.getMessage()));
-            }
-
-            if (e.isTimestampError()) {
-                throw new IllegalStateException(
-                        "Clock drift detected. Sync system time and retry. Error: " + e.getMessage());
-            }
-
-            if (e.isRateLimit()) {
-                throw new IllegalStateException(
-                        "Rate limit exceeded. Wait 60 seconds and retry. Error: " + e.getMessage());
-            }
-
-            throw new RuntimeException(String.format(
-                    "Failed to place order: %s (error code: %d)", e.getMessage(), e.getStatusCode()), e);
         } catch (RuntimeException e) {
             stateManager.removeOrder(order.getClientOrderId());
             persister.submitWrite(stateManager.getStateSnapshot());
@@ -221,13 +262,43 @@ public class OrderService {
             logger.error("Failed to cancel order: id={}, symbol={}, error={}",
                     id, order.getSymbol(), e.getMessage());
 
-            if (e.isRateLimit()) {
-                throw new IllegalStateException(
-                        "Rate limit exceeded. Wait 60 seconds and retry. Error: " + e.getMessage());
+            BinanceErrorType type = e.getErrorType();
+            switch (type) {
+                case ORDER_NOT_FOUND:
+                    throw new IllegalStateException(String.format(
+                            "Order not found for id=%s; it may already be closed or never existed.", id));
+                case CANCEL_REJECTED:
+                    throw new IllegalStateException(String.format(
+                            "Cancel rejected for id=%s: %s (error code: %d)", id, e.getMessage(), e.getStatusCode()));
+                case MARKET_CLOSED:
+                    throw new IllegalStateException(String.format(
+                            "Market is closed for %s. Error: %s (code: %d)", symbol, e.getMessage(),
+                            e.getStatusCode()));
+                case ACCOUNT_TRADING_DISABLED:
+                    throw new IllegalStateException(String.format(
+                            "Trading disabled for this account. Error: %s (code: %d)", e.getMessage(),
+                            e.getStatusCode()));
+                case AUTH_ERROR:
+                    throw new IllegalStateException(String.format(
+                            "Authentication/permissions error. Check BINANCE_API_KEY/BINANCE_API_SECRET. Error: %s (code: %d)",
+                            e.getMessage(), e.getStatusCode()));
+                case INVALID_SIGNATURE:
+                    throw new IllegalStateException(String.format(
+                            "Invalid request signature. Check BINANCE_API_SECRET. Error: %s (code: %d)",
+                            e.getMessage(), e.getStatusCode()));
+                case TIMESTAMP_ERROR:
+                    throw new IllegalStateException(
+                            "Clock drift detected. Sync system time and retry. Error: " + e.getMessage());
+                case RATE_LIMIT:
+                    throw new IllegalStateException(
+                            "Rate limit exceeded. Wait 60 seconds and retry. Error: " + e.getMessage());
+                case NETWORK_ERROR:
+                    throw new IllegalStateException("Network error while canceling order: " + e.getMessage());
+                default:
+                    throw new RuntimeException(String.format(
+                            "Failed to cancel order %s: %s (error code: %d)", id, e.getMessage(),
+                            e.getStatusCode()), e);
             }
-
-            throw new RuntimeException(String.format(
-                    "Failed to cancel order %s: %s (error code: %d)", id, e.getMessage(), e.getStatusCode()), e);
         }
     }
 
@@ -251,9 +322,29 @@ public class OrderService {
      * Refresh open orders from the exchange and reconcile local state.
      */
     public void refreshOpenOrders() {
-        OrderResponse[] orderResponses = RetryUtils.executeWithRetry(
-                () -> restClient.getSigned("/api/v3/openOrders", new HashMap<>(), OrderResponse[].class),
-                "refresh open orders", logger);
+        OrderResponse[] orderResponses;
+        try {
+            orderResponses = RetryUtils.executeWithRetry(
+                    () -> restClient.getSigned("/api/v3/openOrders", new HashMap<>(), OrderResponse[].class),
+                    "refresh open orders", logger);
+        } catch (ApiException e) {
+            BinanceErrorType type = e.getErrorType();
+            if (type == BinanceErrorType.RATE_LIMIT) {
+                throw new IllegalStateException(
+                        "Rate limit exceeded. Wait 60 seconds and retry. Error: " + e.getMessage());
+            }
+            if (type == BinanceErrorType.TIMESTAMP_ERROR) {
+                throw new IllegalStateException(
+                        "Clock drift detected. Sync system time and retry. Error: " + e.getMessage());
+            }
+            if (type == BinanceErrorType.AUTH_ERROR || type == BinanceErrorType.INVALID_SIGNATURE) {
+                throw new IllegalStateException(String.format(
+                        "Authentication/permissions error. Check BINANCE_API_KEY/BINANCE_API_SECRET. Error: %s (code: %d)",
+                        e.getMessage(), e.getStatusCode()));
+            }
+            throw new RuntimeException(String.format(
+                    "Failed to refresh open orders: %s (error code: %d)", e.getMessage(), e.getStatusCode()), e);
+        }
 
         Set<String> seenClientIds = new HashSet<>();
 
@@ -377,11 +468,23 @@ public class OrderService {
         } catch (ApiException e) {
             logger.error("Failed to sync order with exchange: symbol={}, id={}, error={}", symbol, id, e.getMessage());
 
-            if (e.isRateLimit()) {
+            BinanceErrorType type = e.getErrorType();
+            if (type == BinanceErrorType.ORDER_NOT_FOUND) {
+                if (localOrder != null && localOrder.isTerminal()) {
+                    return localOrder;
+                }
+                throw new IllegalStateException(String.format(
+                        "Order not found for id=%s; it may already be closed or never existed.", id));
+            }
+            if (type == BinanceErrorType.RATE_LIMIT) {
                 throw new IllegalStateException(
                         "Rate limit exceeded. Wait 60 seconds and retry. Error: " + e.getMessage());
             }
-
+            if (type == BinanceErrorType.AUTH_ERROR || type == BinanceErrorType.INVALID_SIGNATURE) {
+                throw new IllegalStateException(String.format(
+                        "Authentication/permissions error. Check BINANCE_API_KEY/BINANCE_API_SECRET. Error: %s (code: %d)",
+                        e.getMessage(), e.getStatusCode()));
+            }
             throw new RuntimeException(String.format(
                     "Failed to sync order %s: %s (error code: %d)", id, e.getMessage(), e.getStatusCode()), e);
         }
@@ -390,5 +493,79 @@ public class OrderService {
     private String generateClientOrderId() {
         long timestamp = System.currentTimeMillis();
         return String.format("cli-%d", timestamp);
+    }
+
+    private String formatSymbolFilters(SymbolInfo symbolInfo) {
+        if (symbolInfo == null) {
+            return "Filters unavailable (no exchange info).";
+        }
+
+        PriceFilter price = symbolInfo.getPriceFilter();
+        LotSizeFilter lot = symbolInfo.getLotSizeFilter();
+        MinNotionalFilter notional = symbolInfo.getMinNotionalFilter();
+        PercentPriceBySideFilter percent = symbolInfo.getPercentPriceBySideFilter();
+
+        StringBuilder sb = new StringBuilder("Current filters: ");
+        if (price != null) {
+            sb.append(String.format("PRICE_FILTER(min=%s, max=%s, tickSize=%s); ",
+                    safeDecimal(price.getMinPrice()),
+                    safeDecimal(price.getMaxPrice()),
+                    safeDecimal(price.getTickSize())));
+        }
+        if (lot != null) {
+            sb.append(String.format("LOT_SIZE(min=%s, max=%s, stepSize=%s); ",
+                    safeDecimal(lot.getMinQty()),
+                    safeDecimal(lot.getMaxQty()),
+                    safeDecimal(lot.getStepSize())));
+        }
+        if (notional != null) {
+            sb.append(String.format("MIN_NOTIONAL(min=%s); ", safeDecimal(notional.getMinNotional())));
+        }
+        if (percent != null) {
+            sb.append(String.format("PERCENT_PRICE_BY_SIDE(bidDown=%s, bidUp=%s, askDown=%s, askUp=%s); ",
+                    safeDecimal(percent.getBidMultiplierDown()),
+                    safeDecimal(percent.getBidMultiplierUp()),
+                    safeDecimal(percent.getAskMultiplierDown()),
+                    safeDecimal(percent.getAskMultiplierUp())));
+        }
+
+        return sb.toString().trim();
+    }
+
+    private String formatValidationAdjustments(OrderValidationResult validation, BigDecimal originalPrice,
+            BigDecimal originalQuantity) {
+        if (validation == null) {
+            return "";
+        }
+
+        BigDecimal adjustedPrice = validation.getAdjustedPrice();
+        BigDecimal adjustedQty = validation.getAdjustedQuantity();
+
+        boolean priceAdjusted = originalPrice != null && adjustedPrice != null
+                && originalPrice.compareTo(adjustedPrice) != 0;
+        boolean qtyAdjusted = originalQuantity != null && adjustedQty != null
+                && originalQuantity.compareTo(adjustedQty) != 0;
+
+        if (!priceAdjusted && !qtyAdjusted) {
+            return "";
+        }
+
+        StringBuilder sb = new StringBuilder(" Adjusted values: ");
+        if (priceAdjusted) {
+            sb.append(String.format("price %s -> %s", originalPrice.toPlainString(), adjustedPrice.toPlainString()));
+        }
+        if (qtyAdjusted) {
+            if (priceAdjusted) {
+                sb.append(", ");
+            }
+            sb.append(String.format("qty %s -> %s", originalQuantity.toPlainString(), adjustedQty.toPlainString()));
+        }
+        sb.append(".");
+
+        return sb.toString();
+    }
+
+    private String safeDecimal(BigDecimal value) {
+        return value != null ? value.toPlainString() : "n/a";
     }
 }

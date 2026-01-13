@@ -155,6 +155,64 @@ public class BinanceRestClient {
     }
 
     /**
+     * Execute an API-key authenticated POST request (no signature).
+     *
+     * Used for user data stream endpoints.
+     */
+    public <T> T postApiKey(String endpoint, Map<String, String> params, Class<T> responseType) {
+        String queryString = buildQueryString(params);
+        String url = config.getBaseUrl() + endpoint + (queryString.isEmpty() ? "" : "?" + queryString);
+
+        RequestBody emptyBody = RequestBody.create(new byte[0]);
+
+        Request request = new Request.Builder()
+                .url(url)
+                .header("X-MBX-APIKEY", config.getApiKey())
+                .post(emptyBody)
+                .build();
+
+        return executeRequest(request, responseType);
+    }
+
+    /**
+     * Execute an API-key authenticated PUT request (no signature).
+     *
+     * Used for user data stream keepalive.
+     */
+    public <T> T putApiKey(String endpoint, Map<String, String> params, Class<T> responseType) {
+        String queryString = buildQueryString(params);
+        String url = config.getBaseUrl() + endpoint + (queryString.isEmpty() ? "" : "?" + queryString);
+
+        RequestBody emptyBody = RequestBody.create(new byte[0]);
+
+        Request request = new Request.Builder()
+                .url(url)
+                .header("X-MBX-APIKEY", config.getApiKey())
+                .put(emptyBody)
+                .build();
+
+        return executeRequest(request, responseType);
+    }
+
+    /**
+     * Execute an API-key authenticated DELETE request (no signature).
+     *
+     * Used for user data stream cleanup.
+     */
+    public <T> T deleteApiKey(String endpoint, Map<String, String> params, Class<T> responseType) {
+        String queryString = buildQueryString(params);
+        String url = config.getBaseUrl() + endpoint + (queryString.isEmpty() ? "" : "?" + queryString);
+
+        Request request = new Request.Builder()
+                .url(url)
+                .header("X-MBX-APIKEY", config.getApiKey())
+                .delete()
+                .build();
+
+        return executeRequest(request, responseType);
+    }
+
+    /**
      * Execute HTTP request and parse JSON response.
      *
      * @param request      HTTP request
@@ -188,7 +246,7 @@ public class BinanceRestClient {
             return parsedResponse;
 
         } catch (IOException e) {
-            throw new ApiException("Network error: " + e.getMessage(), e);
+            throw new ApiException(0, "Network error: " + e.getMessage(), true);
         }
     }
 
