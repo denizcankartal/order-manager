@@ -20,8 +20,6 @@ mvn clean package
 
 # Configure environment variables 
 cp .env.example .env
-# Optional: WebSocket base URL (defaults to BINANCE_BASE_URL with ws/wss + /ws)
-# BINANCE_WS_BASE_URL=wss://testnet.binance.vision/ws
 
 # Run
 java -jar target/order-manager-1.0.0.jar --help
@@ -132,22 +130,20 @@ Order canceled successfully
 - Logging: `--verbose` raises logging to DEBUG and redacts signatures in URLs.
 - Errors: ambiguous Binance codes (e.g., -2010) are classified by message to avoid mislabeling; unknowns show code + message.
 
-## Optional: User Data Stream
-Use `order_manager stream` to open a user data stream (listenKey) and listen for `executionReport` events to update local state in real time.
+## User Data Stream
+Use `order_manager stream` to open a user data stream (WebSocket API subscribe) and listen for `executionReport` events to update local state in real time.
 
 Environment:
 ```bash
-# User Data Stream (listenKey)
-BINANCE_WS_BASE_URL=wss://stream.testnet.binance.vision/ws
-# Keepalive interval in minutes (default 30)
-USER_STREAM_KEEPALIVE_MINUTES=30
+# WebSocket API userDataStream endpoint
+BINANCE_WS_BASE_URL=wss://ws-api.testnet.binance.vision/ws-api/v3
 ```
 
-ListenKey lifecycle:
-1. `POST /api/v3/userDataStream` to create a listenKey.
-2. Connect to `wss://stream.testnet.binance.vision/ws/<listenKey>`.
-3. `PUT /api/v3/userDataStream` every ~30 minutes to keep it alive.
-4. `DELETE /api/v3/userDataStream` on shutdown.
+Subscription flow:
+1. Connect to `wss://ws-api.testnet.binance.vision/ws-api/v3`.
+2. Send `userDataStream.subscribe.signature` with your `apiKey`, `timestamp`, optional `recvWindow`, and HMAC signature (handled by the CLI).
+3. Keep the connection open; Binance pushes top-level `executionReport`, `balanceUpdate`, etc. events that include `subscriptionId`.
+4. On exit, the CLI unsubscribes automatically (no extra REST calls needed).
 
 Note: Running `stream` and other commands concurrently can cause last-writer-wins updates to the local state file.
 If you see WebSocket 404 errors, override `BINANCE_WS_BASE_URL` to the correct testnet endpoint.
@@ -169,8 +165,8 @@ Data flow for a typical command:
 4. State snapshot is queued to the async persister for disk write.
 
 WebSocket flow (stream mode):
-1. ListenKey is created via REST.
-2. WebSocket connects to the listenKey stream.
+1. Connect to `wss://ws-api.testnet.binance.vision/ws-api/v3`.
+2. Send `userDataStream.subscribe.signature` (handled for you) to begin receiving events.
 3. Execution reports update in-memory state.
 4. Each update queues a snapshot to the async persister.
 
@@ -276,10 +272,6 @@ Attempt 5: delay = 16s (max attempts reached, fail)
 - Execution reports update in-memory state and enqueue snapshots.
 - No separate event queue or processor thread is used.
 
-**Keepalive Scheduler**
-- Periodically sends listenKey keepalive `PUT` calls.
-- Runs on a scheduled executor.
-
 ## Design Decisions
 
 **Custom REST/WebSocket Clients**
@@ -290,13 +282,13 @@ Decision: Implement custom REST and WebSocket clients instead of using binance j
 - Control retry logic and error handling
 - Keep dependencies minimal and transparent
 
-**Producer-Consumer event pipeline for websocket events**
+**Simplified WebSocket event handling**
 
-Decision: Decouple web socket event handling from processing using BlockingQueue.
+Decision: Let the OkHttp WebSocket callbacks update the state directly while the async persister handles disk writes.
 
-- Non-blocking WebSocket thread never waits for state updates on disk
-- Can add multiple consumer threads if scaling is needed
-- Separation of Concerns by decoupling network I/O from business logic
+- WebSocket events are processed inline without an extra queue.
+- The async persister still serializes snapshots to disk off the CLI thread.
+- Separation of concerns is preserved by keeping network I/O and persistence on dedicated threads.
 
 **In-memory + async disk persistence**
 

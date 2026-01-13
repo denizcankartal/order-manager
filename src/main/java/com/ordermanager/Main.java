@@ -61,8 +61,8 @@ public class Main {
             OrderService orderService = new OrderService(restClient, stateManager, statePersister, exchangeInfoService,
                     config.getBaseAsset(), config.getQuoteAsset());
 
-            userDataStreamService = new UserDataStreamService(restClient, stateManager, statePersister,
-                    config.getWsBaseUrl(), config.getUserStreamKeepAliveMinutes());
+            userDataStreamService = new UserDataStreamService(stateManager, statePersister,
+                    config.getWsBaseUrl(), config.getApiKey(), config.getApiSecret(), config.getRecvWindow());
 
             try {
                 orderService.refreshOpenOrders();
