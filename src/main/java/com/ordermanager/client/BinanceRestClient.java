@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -29,6 +30,7 @@ import java.util.stream.Collectors;
 public class BinanceRestClient {
 
     private static final Logger logger = LoggerFactory.getLogger(BinanceRestClient.class);
+    private static final int MAX_LOG_BODY_LENGTH = 500;
 
     private final OkHttpClient httpClient;
     private final AppConfig config;
@@ -161,10 +163,12 @@ public class BinanceRestClient {
      * @throws ApiException if API returns error or network error occurs
      */
     private <T> T executeRequest(Request request, Class<T> responseType) {
-        logger.debug("Request: {} {}", request.method(), sanitizeUrl(request.url().toString()));
+        long start = System.currentTimeMillis();
+        logRequest(request);
 
         try (Response response = httpClient.newCall(request).execute()) {
             String body = response.body() != null ? response.body().string() : "";
+            logResponse(response, body, responseType, System.currentTimeMillis() - start);
 
             if (!response.isSuccessful()) {
                 ApiException ex = parseErrorResponse(response.code(), body);
@@ -180,8 +184,6 @@ public class BinanceRestClient {
 
             // Deserialize response to specified type
             T parsedResponse = objectMapper.readValue(body, responseType);
-            String logBody = body.length() > 500 ? body.substring(0, 500) + "...(truncated)" : body;
-            logger.debug("Response: {} (type: {})", logBody, responseType.getSimpleName());
 
             return parsedResponse;
 
@@ -291,10 +293,83 @@ public class BinanceRestClient {
     }
 
     /**
-     * Sanitize URL for logging (remove signature)
+     * Log a sanitized HTTP request line.
      */
-    private String sanitizeUrl(String url) {
-        return url.replaceAll("signature=[^&]+", "signature=***");
+    private void logRequest(Request request) {
+        if (!logger.isDebugEnabled()) {
+            return;
+        }
+
+        String path = buildSanitizedPath(request.url());
+        String apiKeyIndicator = request.header("X-MBX-APIKEY") != null ? " (apiKey=*** redacted)" : "";
+        logger.debug("-> {} {}{}", request.method(), path, apiKeyIndicator);
+    }
+
+    /**
+     * Log a sanitized HTTP response line and truncated body.
+     */
+    private void logResponse(Response response, String body, Class<?> responseType, long elapsedMs) {
+        if (!logger.isDebugEnabled()) {
+            return;
+        }
+
+        String path = buildSanitizedPath(response.request().url());
+        logger.debug("<- {} {} {} ({} ms)", response.code(), response.message(), path, elapsedMs);
+
+        String logBody = truncateBody(body);
+        if (!logBody.isEmpty()) {
+            logger.debug("   Body ({}): {}", responseType.getSimpleName(), logBody);
+        }
+    }
+
+    private String buildSanitizedPath(HttpUrl url) {
+        StringBuilder path = new StringBuilder(url.encodedPath());
+        String sanitizedQuery = sanitizeQuery(url);
+
+        if (!sanitizedQuery.isEmpty()) {
+            path.append("?").append(sanitizedQuery);
+        }
+
+        return path.toString();
+    }
+
+    private String sanitizeQuery(HttpUrl url) {
+        String query = url.query();
+        if (query == null || query.isEmpty()) {
+            return "";
+        }
+
+        return Arrays.stream(query.split("&"))
+                .map(this::sanitizeQueryParam)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.joining("&"));
+    }
+
+    private String sanitizeQueryParam(String param) {
+        int idx = param.indexOf('=');
+        String key = idx >= 0 ? param.substring(0, idx) : param;
+
+        if ("signature".equalsIgnoreCase(key)) {
+            return "signature=***";
+        }
+
+        if ("X-MBX-APIKEY".equalsIgnoreCase(key) || "apiKey".equalsIgnoreCase(key)) {
+            return key + "=***";
+        }
+
+        return param;
+    }
+
+    private String truncateBody(String body) {
+        if (body == null || body.isEmpty()) {
+            return "";
+        }
+
+        if (body.length() <= MAX_LOG_BODY_LENGTH) {
+            return body;
+        }
+
+        return body.substring(0, MAX_LOG_BODY_LENGTH) + "...(truncated)";
     }
 
     /**

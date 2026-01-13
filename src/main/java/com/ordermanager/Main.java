@@ -13,12 +13,14 @@ import com.ordermanager.service.OrderService;
 import com.ordermanager.service.StateManager;
 import com.ordermanager.service.TimeSync;
 
+import ch.qos.logback.classic.Level;
 import okhttp3.OkHttpClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Map;
 
 public class Main {
@@ -31,13 +33,11 @@ public class Main {
         BinanceRestClient restClient = null;
 
         try {
-            AppConfig config = AppConfig.loadFromEnv();
-            logger.info("Configuration loaded: baseUrl={}", config.getBaseUrl());
+            configureLogLevel(args);
 
+            AppConfig config = AppConfig.loadFromEnv();
             TimeSync timeSync = new TimeSync(new OkHttpClient(), config.getBaseUrl());
             timeSync.sync();
-            logger.debug("Time synchronized with exchange");
-
             restClient = new BinanceRestClient(config, timeSync);
 
             BalanceService balanceService = new BalanceService(restClient);
@@ -49,7 +49,6 @@ public class Main {
             try {
                 Map<String, Order> savedOrders = persistence.load();
                 stateManager.loadState(savedOrders);
-                logger.info("Loaded {} orders from disk", savedOrders.size());
             } catch (IOException e) {
                 logger.warn("Could not load previous orders, starting with empty state: {}", e.getMessage());
             }
@@ -76,12 +75,10 @@ public class Main {
             System.exit(exitCode);
 
         } catch (ConfigurationException e) {
-            System.err.println("Configuration error: " + e.getMessage());
             logger.error("Configuration error", e);
             System.exit(1);
 
         } catch (Exception e) {
-            System.err.println("Unexpected error: " + e.getMessage());
             logger.error("Fatal error", e);
 
             if (statePersister != null) {
@@ -101,5 +98,29 @@ public class Main {
 
             System.exit(1);
         }
+    }
+
+    private static void configureLogLevel(String[] args) {
+        boolean verbose = Arrays.stream(args).anyMatch(Main::isVerboseFlagPresent);
+        if (!verbose) {
+            return;
+        }
+
+        ch.qos.logback.classic.Logger root = (ch.qos.logback.classic.Logger) LoggerFactory
+                .getLogger(Logger.ROOT_LOGGER_NAME);
+        root.setLevel(Level.DEBUG);
+    }
+
+    private static boolean isVerboseFlagPresent(String arg) {
+        if (arg.equals("--verbose")) {
+            return true;
+        }
+
+        if (arg.startsWith("--verbose=")) {
+            String[] parts = arg.split("=", 2);
+            return parts.length == 2 && Boolean.parseBoolean(parts[1]);
+        }
+
+        return false;
     }
 }

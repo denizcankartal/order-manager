@@ -37,7 +37,6 @@ public class StatePersistence {
         // Create directory if it doesn't exist
         try {
             Files.createDirectories(stateFilePath.getParent());
-            logger.info("State persistence initialized: {}", stateFilePath);
         } catch (IOException e) {
             throw new RuntimeException("Failed to create state directory: " + stateFilePath.getParent(), e);
         }
