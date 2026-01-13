@@ -90,8 +90,6 @@ public class ExchangeInfoService {
                 }
             }
 
-            logger.info("Exchange info cache loaded: {} symbols", symbolCache.size());
-
         } catch (ApiException e) {
             logger.error("Failed to load exchange info: error={}", e.getMessage());
 
