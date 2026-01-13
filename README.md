@@ -25,6 +25,26 @@ cp .env.example .env
 java -jar target/order-manager-1.0.0.jar --help
 ```
 
+### Docker
+
+```bash
+# Build image
+docker compose build
+
+# Run commands
+docker compose run --rm order-manager balances
+docker compose run --rm order-manager list
+docker compose run --rm order-manager add --side BUY --price 10000 --qty 0.001
+docker compose run --rm order-manager cancel --id 123456
+docker compose run --rm order-manager show --id 123456
+docker compose run --rm order-manager --verbose balances
+
+# To reset local state:
+docker compose down -v
+```
+
+State is persisted in the named volume `order-manager-state` at `/home/app/.order-manager` (the CLI writes `orders.json` there).
+
 ### Commands
 
 ```bash

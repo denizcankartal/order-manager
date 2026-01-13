@@ -37,9 +37,19 @@ public class StatePersistence {
         // Create directory if it doesn't exist
         try {
             Files.createDirectories(stateFilePath.getParent());
+            ensureStateFileExists();
         } catch (IOException e) {
             throw new RuntimeException("Failed to create state directory: " + stateFilePath.getParent(), e);
         }
+    }
+
+    private void ensureStateFileExists() throws IOException {
+        if (Files.exists(stateFilePath)) {
+            return;
+        }
+
+        logger.info("State file does not exist, creating empty state at {}", stateFilePath);
+        objectMapper.writeValue(stateFilePath.toFile(), new OrderState(new HashMap<>()));
     }
 
     /**

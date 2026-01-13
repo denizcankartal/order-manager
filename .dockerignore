@@ -1,0 +1,16 @@
+.git
+.gitignore
+.claude
+
+target
+logs
+*.log
+*.class
+
+.env
+.env.*
+.order-manager
+orders.json
+
+README.md
+

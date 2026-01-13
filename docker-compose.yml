@@ -1,0 +1,13 @@
+services:
+  order-manager:
+    build: .
+    image: order-manager:local
+    env_file:
+      - .env
+    volumes:
+      - order-manager-state:/home/app/.order-manager
+    command: ["--help"]
+
+volumes:
+  order-manager-state:
+
