@@ -53,7 +53,7 @@ class OrderValidatorTest {
 
         @Test
         void testValidatePrice_RequiresAdjustment_RoundsDown() {
-                // BTCUSDT: price=$50000.123, tickSize=$0.01 → should round to $50000.12
+                // BTCUSDT: price=$50000.123, tickSize=$0.01 -> should round to $50000.12
                 PriceFilter filter = new PriceFilter(
                                 new BigDecimal("0.01"),
                                 new BigDecimal("1000000"),
@@ -145,7 +145,7 @@ class OrderValidatorTest {
 
         @Test
         void testValidateQuantity_RequiresAdjustment_RoundsDown() {
-                // BTCUSDT: qty=0.0012345, stepSize=0.00001 → should round to 0.00123
+                // BTCUSDT: qty=0.0012345, stepSize=0.00001 -> should round to 0.00123
                 LotSizeFilter filter = new LotSizeFilter(
                                 new BigDecimal("0.00001"),
                                 new BigDecimal("9000"),
@@ -331,7 +331,7 @@ class OrderValidatorTest {
                                 priceFilter, lotSizeFilter, minNotionalFilter, null);
 
                 // Original: 0.00025 * 50000.99 = $12.50 (OK)
-                // After adjustment: 0.00025 * 50000.99 → rounds down → may fail notional
+                // After adjustment: 0.00025 * 50000.99 -> rounds down -> may fail notional
                 OrderValidator.OrderValidationResult result = OrderValidator.validate(
                                 "BTCUSDT",
                                 OrderSide.BUY,
@@ -481,7 +481,8 @@ class OrderValidatorTest {
                 info.setSymbol(symbol);
                 info.setStatus(status);
 
-                if (priceFilter != null || lotSizeFilter != null || minNotionalFilter != null || percentFilter != null) {
+                if (priceFilter != null || lotSizeFilter != null || minNotionalFilter != null
+                                || percentFilter != null) {
                         info.setFilters(Arrays.asList(priceFilter, lotSizeFilter, minNotionalFilter, percentFilter)
                                         .stream()
                                         .filter(f -> f != null)

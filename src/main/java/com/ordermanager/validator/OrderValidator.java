@@ -193,7 +193,7 @@ public class OrderValidator {
         BigDecimal adjustedPrice = adjustToTickSize(price, tickSize);
 
         if (price.compareTo(adjustedPrice) != 0) {
-            String warning = String.format("Price adjusted: %s → %s (tickSize: %s)",
+            String warning = String.format("Price adjusted: %s -> %s (tickSize: %s)",
                     price.toPlainString(), adjustedPrice.toPlainString(), tickSize.toPlainString());
             return ValidationResult.adjusted(price, adjustedPrice, warning);
         }
@@ -234,7 +234,7 @@ public class OrderValidator {
         BigDecimal adjustedQty = adjustToStepSize(quantity, stepSize);
 
         if (quantity.compareTo(adjustedQty) != 0) {
-            String warning = String.format("Quantity adjusted: %s → %s (stepSize: %s)",
+            String warning = String.format("Quantity adjusted: %s -> %s (stepSize: %s)",
                     quantity.toPlainString(), adjustedQty.toPlainString(), stepSize.toPlainString());
             return ValidationResult.adjusted(quantity, adjustedQty, warning);
         }

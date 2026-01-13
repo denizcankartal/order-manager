@@ -1,43 +1,31 @@
-This is a CLI for managing Spot LIMIT orders on Binance Spot Testnet, enabling users to place, cancel, list, and track orders with real-time updates via WebSocket.
+# Order Manager CLI
+
+This is a CLI for managing Spot LIMIT orders on the Binance Spot Testnet, allows users to place, cancel, list, and track orders.
 
 ## Quick Start
 
 ### Prerequisites
 
-- Java 21
-- Maven 3.8
-- Docker
-- Get Binance Testnet API Credentials from [here](https://testnet.binance.vision/)
+*   Java 21
+*   Maven 3.8+
+*   Docker (for containerized execution)
+*   Binance Testnet API Credentials, which can be obtained from [here](https://testnet.binance.vision/)
 
-### Build and Run
+### Installation & Running
 
+First, configure your environment by copying the example file and adding your API credentials:
 ```bash
-# Compile and test
-mvn clean test
-
-# Package the project as JAR
-mvn clean package
-
-# Configure environment variables 
 cp .env.example .env
-
-# Run
-java -jar target/order-manager-1.0.0.jar --help
 ```
 
-### Docker
+You can run the application using either Docker or by building the JAR with Maven.
 
+#### Running with Docker
 ```bash
-# Build image
 docker compose build
 
-# Run commands
 docker compose run --rm order-manager balances
 docker compose run --rm order-manager list
-docker compose run --rm order-manager add --side BUY --price 10000 --qty 0.001
-docker compose run --rm order-manager cancel --id 123456
-docker compose run --rm order-manager show --id 123456
-docker compose run --rm order-manager --verbose balances
 
 # To reset local state:
 docker compose down -v
@@ -45,294 +33,128 @@ docker compose down -v
 
 State is persisted in the named volume `order-manager-state` at `/home/app/.order-manager` (the CLI writes `orders.json` there).
 
-### Commands
-
+#### Running with Java + Maven
 ```bash
-# Print free/locked balances for relevant assets of the traded
-order_manager balances
+# Compile, run tests, and package the executable JAR
+mvn clean package
 
-# Place a LIMIT order
-order_manager add --side BUY|SELL --symbol BTCUSDT --price 10.15 --qty 10 [--client-id myid-123]
+java -jar target/order-manager-1.0.0.jar balances
+java -jar target/order-manager-1.0.0.jar --help
+```
+State is persisted in the `~/.order-manager/` directory.
 
-# Cancel an order by orderId or origClientOrderId.
-order_manager cancel --id <orderId|origClientOrderId>
+## Commands & Example Session
 
-# List open orders
-order_manager list [--symbol BTCUSDT]
+Note: The symbol such as `BTCUSDT` is configured via environment variables `BASE_ASSET` and `QUOTE_ASSET`
 
-# Show order details given orderId or origClientOrderId
-order_manager show --id <orderId|origClientOrderId>
+#### `balances`: Check account balances
+```bash
+$ java -jar target/order-manager-1.0.0.jar balances
 
-# Verbose HTTP logging (redacted signatures)
-order_manager --verbose add --side BUY --symbol BTCUSDT --price 10000 --qty 0.001
-
-# Long-running user data stream (execution reports)
-order_manager stream
+ASSET      FREE                 LOCKED
+----------------------------------------------
+BTC        1.50000000           0.00000000
+USDT       10000.00000000       0.00000000
 ```
 
-### Example Session
-
+#### `add`: Place a new LIMIT order
 ```bash
-# Check balances
-order_manager balances
---
-Asset | Free        | Locked
-------|-------------|--------
-BTC   | 1.50000000  | 0.00000000
-USDT  | 10000.00000 | 0.00000
---
+$ java -jar target/order-manager-1.0.0.jar add --side BUY --price 65000.00 --qty 0.001
 
-# Place a buy order
-order_manager add --side BUY --symbol BTCUSDT --price 90000.00 --qty 0.001
---
-Order placed successfully
-{"orderId": 123456, "clientOrderId": "cli-1234567890", "status": "NEW"}
---
+{
+  "orderId": 123456,
+  "clientOrderId": "cli-1736507400000",
+  "status": "NEW"
+}
+```
 
-# List open orders
-order_manager list --symbol BTCUSDT
---
-OrderId | Side | Price     | OrigQty  | ExecutedQty | Status | UpdateTime
---------|------|-----------|----------|-------------|--------|-------------------
-123456  | BUY  | 90000.00  | 0.001000 | 0.000000    | NEW    | 2026-01-10 10:30:00
---
+#### `list`: List all open orders
+```bash
+$ java -jar target/order-manager-1.0.0.jar list
 
-# Show order details
-order_manager show --id 123456
+ORDER_ID     CLIENT_ID            SIDE   SYMBOL       PRICE          ORIG_QTY       EXEC_QTY       STATUS     UPDATE_TIME
+--------------------------------------------------------------------------------------------------------------------------
+123456       cli-1736507400000    BUY    BTCUSDT      65000.00       0.001          0.00000000     NEW        2026-01-10 10:30:00
+```
+
+#### `show`: Get detailed information for a single order
+```bash
+$ java -jar target/order-manager-1.0.0.jar show --id 123456
+
+{
+  "orderId": 123456,
+  "clientOrderId": "cli-1736507400000",
+  "symbol": "BTCUSDT",
+  "side": "BUY",
+  "price": "65000.00",
+  "origQty": "0.001",
+  "executedQty": "0.000000",
+  "status": "NEW",
+  "updateTime": 1736507400000
+}
+```
+
+#### `cancel`: Cancel an order
+```bash
+$ java -jar target/order-manager-1.0.0.jar cancel --id 123456
 --
 {
   "orderId": 123456,
-  "clientOrderId": "cli-1234567890",
-  "symbol": "BTCUSDT",
-  "side": "BUY",
-  "type": "LIMIT",
-  "price": "90000.00",
-  "origQty": "0.001000",
-  "executedQty": "0.000000",
-  "status": "NEW",
-  "timeInForce": "GTC",
-  "updateTime": 1736507400000
-}
---
-
-# Cancel the order
-order_manager cancel --id 123456
---
-Order canceled successfully
-{"orderId": 123456, "status": "CANCELED"}
---
-
-## Design Notes
-- State: in-memory `StateManager` keyed by `clientOrderId`, persisted asynchronously to `~/.order-manager/orders.json`.
-- Reconciliation: each list/show/refresh call hits Binance REST first, then reconciles local state (missing active orders are refetched).
-- Validation: PRICE_FILTER, LOT_SIZE auto-round down with warnings; MIN_NOTIONAL and PERCENT_PRICE_BY_SIDE fail fast with clear messages.
-- Reliability: signed requests use HMAC-SHA256; retries with backoff 1/2/4/8/16s on 418/429/5xx/-1021; a timestamp error triggers an immediate time resync.
-- Logging: `--verbose` raises logging to DEBUG and redacts signatures in URLs.
-- Errors: ambiguous Binance codes (e.g., -2010) are classified by message to avoid mislabeling; unknowns show code + message.
-
-## User Data Stream
-Use `order_manager stream` to open a user data stream (WebSocket API subscribe) and listen for `executionReport` events to update local state in real time.
-
-Environment:
-```bash
-# WebSocket API userDataStream endpoint
-BINANCE_WS_BASE_URL=wss://ws-api.testnet.binance.vision/ws-api/v3
-```
-
-Subscription flow:
-1. Connect to `wss://ws-api.testnet.binance.vision/ws-api/v3`.
-2. Send `userDataStream.subscribe.signature` with your `apiKey`, `timestamp`, optional `recvWindow`, and HMAC signature (handled by the CLI).
-3. Keep the connection open; Binance pushes top-level `executionReport`, `balanceUpdate`, etc. events that include `subscriptionId`.
-4. On exit, the CLI unsubscribes automatically (no extra REST calls needed).
-
-Note: Running `stream` and other commands concurrently can cause last-writer-wins updates to the local state file.
-If you see WebSocket 404 errors, override `BINANCE_WS_BASE_URL` to the correct testnet endpoint.
-```
-
-## Architecture
-### System Design Overview
-
-This CLI is composed of four main layers:
-- **CLI layer (Picocli)**: Parses commands and prints output.
-- **Service layer**: Orchestrates REST calls, validation, and state updates.
-- **State layer**: In-memory order cache with async persistence to disk.
-- **Client layer**: Signed REST client + optional user data stream (WebSocket).
-
-Data flow for a typical command:
-1. CLI command calls a service method (e.g., `placeOrder`, `cancelOrder`).
-2. Service validates inputs (filters) and calls Binance REST.
-3. Response updates in-memory state.
-4. State snapshot is queued to the async persister for disk write.
-
-WebSocket flow (stream mode):
-1. Connect to `wss://ws-api.testnet.binance.vision/ws-api/v3`.
-2. Send `userDataStream.subscribe.signature` (handled for you) to begin receiving events.
-3. Execution reports update in-memory state.
-4. Each update queues a snapshot to the async persister.
-
-### Key Components
-
-**Order Lifecycle**
-```bash
-PENDING NEW (Local state) --- POST /api/v3/order --> NEW (Order accepted by exchange) --- Market Fills --> PARTIALLY FILLED / FILLED
-                                                                                       |
-                                                                                       -- Error ---------> REJECTED
-                                                                                       |
-                                                                                       -- User Cancels --> CANCELLED
-
-```
-**Internal State: In-Memory + Disk Persistence**
-
-```bash
-{
-  clientOrderId,
-  orderId,
-  symbol,
-  side,
-  price,
-  origQty,
-  executedQty,
-  status,
-  updateTime
+  "clientOrderId": "cli-1736507400000",
+  "status": "CANCELED"
 }
 ```
 
-Sources of truth:
-1. Binance exchange
-2. Local in-memory (fast, bare minimum latency)
-3. Disk state (persistent, may be slightly stale, eventual consistency)
-
-How is state manipulated:
-1. On startup: Load state from disk -> query exchange to compare
-2. On place order: REST response -> update local state -> async disk write
-3. On websocket event: Update local state -> async disk write
-4. On periodic query command: Update local state -> async disk write
-
-How is state implemented:
-- In-memory, orders are stored in a `ConcurrentHashMap` for fast O(1) access and thread-safe concurrent updates.
-- For persistence, orders are written asynchronously to a json file `orders.json` on disk to survive application restarts.
-- Exchange is queried periodically to catch missed events
-
-**Filter Validation & Auto-Adjustment**
-
-Before placing an order, the application validates price and quantity against symbol-specific filters from `/api/v3/exchangeInfo`:
-
-**Filters Checked**:
-- **LOT_SIZE**: Validates quantity is within min/max and aligns with step size
-- **PRICE_FILTER**: Validates price is within min/max and aligns with tick size
-- **MIN_NOTIONAL**: Ensures price × quantity meets minimum order value
-- **PERCENT_PRICE_BY_SIDE**: Ensures price is within acceptable range of current market price
-
-**Validation Strategy**:
-1. Fetch filters on first use, cache them in memory (filters rarely change)
-2. Validate user input against all applicable filters
-3. If invalid, auto-adjust (round down to nearest valid value) and warn user
-4. If adjustment impossible (e.g., below minimum), reject with clear error message
-
-**Example**:
-```
-User input: --price 45123.456 --qty 0.0012345
-Adjusted:   --price 45123.00  --qty 0.00123000
-Warning: Price rounded to tick size 1.00, Quantity rounded to step size 0.00001000
+#### `stream`: Subscribe to real-time updates
+This command opens a persistent WebSocket connection to receive real-time updates on orders and account activity.
+```bash
+$ java -jar target/order-manager-1.0.0.jar stream
+--
+User data stream started. Press Ctrl+C to stop.
+...executionReport events will be logged here...
 ```
 
-**Retry Strategy**
+## System Design and Architecture
 
-Transient errors (network issues, rate limits) are retried with exponential backoff:
+### System Overview
 
-```
-Attempt 1: delay = 1s
-Attempt 2: delay = 2s
-Attempt 3: delay = 4s
-Attempt 4: delay = 8s
-Attempt 5: delay = 16s (max attempts reached, fail)
-```
+- **CLI (`com.ordermanager.cli`)**: Parses commands, validates inputs, and formats console output.
+- **Service (`com.ordermanager.service`)**: Contains the core business logic, orchestrating API calls, state management, and order validation.
+- **Client (`com.ordermanager.client`)**: A custom HTTP client responsible for all communication with the Binance API, including request signing and error handling.
+- **Persistence (`com.ordermanager.persistence`)**: Handles the serialization of order data to and from the local filesystem.
 
-**Retriable errors**:
-- HTTP 429 (Rate limit exceeded)
-- HTTP 418 (IP banned temporarily)
-- HTTP 5xx (Network errors)
+### State Management & Reconciliation
+The app maintains a local snapshot of all tracked orders to provide instant feedback and reduce reliance on API calls.
+- **In-Memory Storage:** Orders are held in a `ConcurrentHashMap` within the `StateManager` for fast, thread-safe lookups by either `clientOrderId` or `orderId`.
+- **Asynchronous Persistence:** To avoid blocking CLI operations, state is written to `orders.json` on a dedicated background thread managed by `AsyncStatePersister`, ensuring a async experience while guaranteeing eventual persistence.
+- **State Reconciliation:** On startup, the application fetches all open orders from the exchange via `GET /api/v3/openOrders`. It then reconciles this information with the state loaded from `orders.json`, updating statuses for any orders that were changed.
 
-**Non-retriable errors**:
-- HTTP 4xx (Business Errors e.g. bad request, unauthorized, forbidden)
+### Order Validation & Filters
+To prevent invalid requests from ever reaching the exchange, order parameters are pre-validated against the symbol's trading rules fetched from `GET /api/v3/exchangeInfo`.
+- **Filters Validated:** `PRICE_FILTER`, `LOT_SIZE`, `MIN_NOTIONAL`, and `PERCENT_PRICE_BY_SIDE`.
+- **Auto-Adjustment:** For `PExperienceRICE_FILTER` (tick size) and `LOT_SIZE` (step size), the application automatically rounds the user's input down to the nearest valid value and prints a warning.
+- **Fail-Fast (Correctness):** For critical filters like `MIN_NOTIONAL` and `PERCENT_PRICE_BY_SIDE`, the application fails immediately with a clear error message, as these cannot be safely auto-adjusted.
 
-### Thread Model
+### Real-time Updates (WebSocket)
+The optional `stream` command implements the User Data Stream.
+- **Connection:** The `UserDataStreamService` establishes a persistent WebSocket connection to Binance.
+- **Authentication:** The stream is authenticated using a signed request.
+- **State Updates:** Upon receiving an `executionReport` event, the service updates the corresponding order's status and quantities in the `StateManager` and queues the new state for persistence.
+- **Resilience:** The service includes automatic reconnection logic with exponential backoff to handle temporary network disruptions.
 
-**Main Thread (CLI)**
-- Parses CLI args and runs commands.
-- Calls REST endpoints and updates in-memory state.
-- Queues snapshots for async persistence.
+### Reliability: Retries & Time Sync
+- **Retry Mechanism:** A generic `RetryUtils` class wraps critical API calls. It catches retriable errors (HTTP `429`, `418`, `5xx`, and Binance-specific codes like `-1021`) and retries the operation with an exponential backoff delay (1s, 2s, 4s, ...).
+- **Clock Drift Handling:** The Binance API requires request timestamps to be close to the server's time. The `TimeSync` service fetches the official server time on startup to calculate a local clock offset. This offset is used in all subsequent signed requests to prevent timestamp-related errors (`-1021`). If a timestamp error still occurs, a resync is triggered immediately.
 
-**Async State Persister Thread**
-- Consumes queued state snapshots and writes `orders.json` to disk.
-- All disk I/O happens here, not on the CLI or WebSocket thread.
-
-**WebSocket Thread (stream mode)**
-- OkHttp WebSocket callbacks run on OkHttp internal threads.
-- Execution reports update in-memory state and enqueue snapshots.
-- No separate event queue or processor thread is used.
-
-## Design Decisions
-
-**Custom REST/WebSocket Clients**
-
-Decision: Implement custom REST and WebSocket clients instead of using binance java connector.
-
-- Demonstrate HTTP/WebSocket knowledge
-- Control retry logic and error handling
-- Keep dependencies minimal and transparent
-
-**Simplified WebSocket event handling**
-
-Decision: Let the OkHttp WebSocket callbacks update the state directly while the async persister handles disk writes.
-
-- WebSocket events are processed inline without an extra queue.
-- The async persister still serializes snapshots to disk off the CLI thread.
-- Separation of concerns is preserved by keeping network I/O and persistence on dedicated threads.
-
-**In-memory + async disk persistence**
-
-Decision: Use ConcurrentHashMap for primary state, with asynchronous JSON file writes.
-
-- Fast Queries, in-memory lookup is O(1)
-- Crash Resilience, state persists to disk, survives restarts
-- Non-blocking async writes don't delay user commands
-
-**Auto-Adjust filters with warnings**
-
-Decision: Automatically round prices/quantities to valid values, warn user.
-
-- Better UX because adjusting is friendlier than rejecting
-- Prevents common mistake (too many decimals)
-
-**BigDecimal for financial calculations**
-
-Decision: Use BigDecimal for all prices, quantities, and amounts.
-
-- Correctness: No floating-point rounding errors. (Although slower than double operation still negligible for this cli)
-
-**Exponential Backoff for Retries**
-
-Decision: Retry failed requests with exponential backoff.  1 -> 2 -> 4 -> 8 -> 16 -> give up
-
-- Prevents overwhelming and doesnt hammer exchange during outages
-- Graceful Degradation, gives exchange time to recover
-
-**No Optimization**
-
-Decision: No low-level optimization since the CLI is assumed to be operated by a human trader and because the network latency between the CLI and binance servers dwarfs any code optimization. For a co-located HFT system processing 10,000 events/second, I would use different techniques: reduce GC pauses lock-free queues, zero-copy buffers, thread pinning. Most of our latency comes from network and unless we colocate, optimizing code from x ms to x/10 or even x/100 ms will not save us in 10x (most of this 10x is network latency) total operation. 
-
-TODO: PROVIDE SOME ACTUAL NUMBERS AND METRICS IF TIME ALLOWS. 
-
-For now no need to implement:
-- Lock-free data structures everywhere (ConcurrentHashMap is fine currently)
-- Object pooling (GC overhead is negligible)
-- Zero-copy deserialization
-- Custom memory allocators
+### Key Design Decisions
+- **Custom REST/WebSocket Clients:** A custom client was built using OkHttp instead of binance-java-connector to demonstrate a clear understanding of HTTP, authentication, and error handling, and also keep dependencies minimal.
+- **`BigDecimal` for Financial Calculations:** All prices, quantities, and notional values use `BigDecimal` to avoid floating-point inaccuracies, ensuring financial correctness.
+- **Asynchronous Persistence:** Decoupling file I/O from the main application thread to maintain a responsive experience.
+- **Pragmatic Concurrency:** Using standard concurrency utilities (`ConcurrentHashMap`, `ExecutorService`, `BlockingQueue`) appropriate for this project's needs without premature optimization (e.g., lock-free algorithms), which would be unnecessary for this use case.
 
 ## Assumptions & Limitations
-- Stable internet connection for WebSocket
-- System clock is reasonably accurate (within 1 minute of UTC)
-- Binance Testnet is available and responsive
-- CLI is expected to be used by human traders, not part of a HFT system therefore, CLI is not specifically designed for high-frequency trading.
+- **Single Trading Pair:** The application is configured via environment variables to trade a single symbol (e.g. `BTCUSDT`) for the duration of its runtime.
+- **Network Stability:** A stable internet connection is assumed for reliable operation, especially for the real-time `stream` command.
+- **Not for HFT:** The application is designed for human traders. It is not optimized ultra low latency automated trading.
+
  

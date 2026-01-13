@@ -141,7 +141,7 @@ class OrderServiceTest {
         }
 
         @Test
-        void syncWithExchange_updatesLocalState() {
+        void syncWithExchange_removesTerminalOrderFromLocalState() {
                 Order existing = new Order("cli-1", "BTCUSDT", OrderSide.BUY,
                                 new BigDecimal("100"), new BigDecimal("0.1"));
                 existing.setOrderId(77L);
@@ -161,6 +161,32 @@ class OrderServiceTest {
 
                 assertEquals(OrderStatus.FILLED, existing.getStatus());
                 assertEquals(new BigDecimal("0.1"), existing.getExecutedQty());
+                verify(stateManager).removeOrder("cli-1");
+                verify(stateManager, never()).updateOrder(any());
+                verify(persister).submitWrite(anyMap());
+        }
+
+        @Test
+        void syncWithExchange_updatesLocalState() {
+                Order existing = new Order("cli-1", "BTCUSDT", OrderSide.BUY,
+                                new BigDecimal("100"), new BigDecimal("0.1"));
+                existing.setOrderId(77L);
+                existing.setStatus(OrderStatus.NEW);
+                when(stateManager.getOrder("77")).thenReturn(null);
+                when(stateManager.getOrder("cli-1")).thenReturn(existing);
+
+                OrderResponse resp = new OrderResponse();
+                resp.setOrderId(77L);
+                resp.setClientOrderId("cli-1");
+                resp.setStatus(OrderStatus.PARTIALLY_FILLED.name());
+                resp.setExecutedQty("0.05");
+                when(restClient.getSigned(eq("/api/v3/order"), anyMap(), eq(OrderResponse.class)))
+                                .thenReturn(resp);
+
+                service.fetchAndUpdateOrder("cli-1", "BTCUSDT");
+
+                assertEquals(OrderStatus.PARTIALLY_FILLED, existing.getStatus());
+                assertEquals(new BigDecimal("0.05"), existing.getExecutedQty());
                 verify(stateManager).updateOrder(existing);
                 verify(persister).submitWrite(anyMap());
         }

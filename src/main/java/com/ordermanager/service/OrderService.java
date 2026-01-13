@@ -460,7 +460,14 @@ public class OrderService {
                     response.getUpdateTime() != null ? response.getUpdateTime() : System.currentTimeMillis());
             order.setTime(response.getTransactTime());
 
-            stateManager.updateOrder(order);
+            if (order.isTerminal()) {
+                stateManager.removeOrder(order.getClientOrderId());
+                logger.info("Removed terminal order from state: clientOrderId={}, orderId={}, status={}",
+                        order.getClientOrderId(), order.getOrderId(), order.getStatus());
+            } else {
+                stateManager.updateOrder(order);
+            }
+
             persister.submitWrite(stateManager.getStateSnapshot());
 
             return order;
