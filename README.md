@@ -5,7 +5,7 @@
 ![Docker](https://img.shields.io/badge/Docker-Supported-blue.svg)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
 
-A high-quality, robust command-line interface (CLI) for managing Spot `LIMIT` orders on the Binance Spot Testnet. This application allows users to place, cancel, list, and track orders, with a focus on correctness, reliability, and a clear user experience.
+CLI for managing Spot `LIMIT` orders on the Binance Spot Testnet, allows users to place, cancel, list, and track orders.
 
 ## Features
 
@@ -25,41 +25,32 @@ A high-quality, robust command-line interface (CLI) for managing Spot `LIMIT` or
 *   Docker (optional, for containerized execution)
 *   Binance Testnet API credentials, which can be obtained from [here](https://testnet.binance.vision/).
 
-### Installation & Configuration
+### Configure API Credentials
 
-1.  **Clone the repository:**
-    ```bash
-    git clone <repository-url>
-    cd order-manager
-    ```
+Copy the environment file template and add your Binance Testnet API key and secret.
 
-2.  **Configure API Credentials:**
-    Copy the environment file template and add your Binance Testnet API key and secret.
-    ```bash
-    cp .env.example .env
-    # Now, edit the .env file with your credentials
-    ```
+```bash
+cp .env.example .env
+```
 
 ### Running the Application
 
-You can run the application using either Docker Compose (recommended for ease of use) or by building the executable JAR with Maven.
+One can run the application using either Docker Compose or by building the executable JAR with Maven.
 
 #### Option 1: Running with Docker Compose
-
-This is the simplest way to run the application with managed state.
 
 ```bash
 # Build the Docker image
 docker compose build
 
-# Run any command
 docker compose run --rm order-manager balances
 docker compose run --rm order-manager list --symbol BTCUSDT
 
 # To reset the local order state, bring the volume down
 docker compose down -v
 ```
-> State is persisted in a named Docker volume `order-manager-state`, which maps to `/home/app/.order-manager` inside the container.
+
+State is persisted in a named Docker volume `order-manager-state`, which maps to `/home/app/.order-manager` inside the container.
 
 #### Option 2: Running with Java + Maven
 
@@ -73,11 +64,12 @@ mvn clean package
 java -jar target/order-manager-1.0.0.jar balances
 java -jar target/order-manager-1.0.0.jar --help
 ```
-> State is persisted in the `~/.order-manager/` directory in your home folder.
 
-## Command Reference & Examples
+State is persisted in the `~/.order-manager/` directory in your home folder.
 
-*Note: The primary trading symbol (e.g., `BTCUSDT`) is configured via the `BASE_ASSET` and `QUOTE_ASSET` environment variables.*
+## Example session
+
+Note: The primary trading symbol (e.g., `BTCUSDT`) is configured via the `BASE_ASSET` and `QUOTE_ASSET` environment variables.
 
 #### `balances`: Check account balances
 
@@ -93,7 +85,7 @@ USDT       10000.00000000       0.00000000
 #### `add`: Place a new LIMIT order
 
 ```bash
-$ java -jar target/order-manager-1.0.0.jar add --side BUY --price 65000.00 --qty 0.001
+$ java -jar target/order-manager-1.0.0.jar add --side BUY --price 90000.00 --qty 0.001
 
 {
   "orderId": 123456,
@@ -109,7 +101,7 @@ $ java -jar target/order-manager-1.0.0.jar list
 
 ORDER_ID  CLIENT_ID          SIDE  SYMBOL   PRICE     ORIG_QTY  EXEC_QTY  STATUS  UPDATE_TIME
 -----------------------------------------------------------------------------------------------------------------------
-123456    cli-1736507400000  BUY   BTCUSDT  65000.00  0.001     0.000000  NEW     2026-01-10 10:30:00
+123456    cli-1736507400000  BUY   BTCUSDT  90000.00  0.001     0.000000  NEW     2026-01-10 10:30:00
 ```
 
 #### `show`: Fetch detailed information for a single order from the exchange
@@ -157,8 +149,6 @@ User data stream started. Press Ctrl+C to stop.
 
 ### System Overview
 
-The application is designed with a clean separation of concerns, organized into four main packages:
-
 -   **CLI (`com.ordermanager.cli`)**: Parses commands, validates user inputs, and formats console output. It acts as the entry point and controller layer.
 -   **Service (`com.ordermanager.service`)**: Contains the core business logic, orchestrating API calls, state management, and order validation.
 -   **Client (`com.ordermanager.client`)**: A custom HTTP/WebSocket client layer responsible for all communication with the Binance API, including request signing and error handling.
@@ -180,33 +170,26 @@ To prevent invalid requests, order parameters are pre-validated against the symb
 -   **Auto-Adjustment:** For `PRICE_FILTER` (tick size) and `LOT_SIZE` (step size), the application automatically rounds the user's input down to a valid value and notifies the user with a warning.
 -   **Fail-Fast:** For critical filters like `MIN_NOTIONAL`, the application fails immediately with a clear error message, as these cannot be safely auto-adjusted.
 
-### Real-time Updates (WebSocket Bonus)
+### Real-time Updates
 
 The `stream` command implements the User Data Stream for real-time updates.
 
 -   **Connection & Authentication:** The `UserDataStreamService` establishes and maintains an authenticated, persistent WebSocket connection.
 -   **Live State Updates:** Upon receiving an `executionReport` event, the service immediately updates the order's status and quantities in the `StateManager` and queues the new state for persistence.
--   **Resilience:** The service includes automatic reconnection logic with exponential backoff to handle temporary network disruptions gracefully.
 
 ### Reliability and Error Handling
 
 -   **Retry Mechanism:** Critical API calls are wrapped in a generic `RetryUtils` class. It catches retriable network errors (HTTP `429`, `418`, `5xx`) and retries the operation with an exponential backoff delay.
--   **Clock Drift Handling:** The application proactively fetches the Binance server time via `TimeSync` to calculate a local clock offset. This offset is applied to all signed requests to prevent timestamp-related errors (`-1021`).
+-   **Clock Drift Handling:** The application fetches the Binance server time via `TimeSync` to calculate a local clock offset. 
 
 ### Key Architectural Decisions
 
--   **Custom API Client:** A custom client was built using OkHttp to demonstrate a ground-up understanding of HTTP communication, request signing, and error handling, while also minimizing external dependencies.
--   **`BigDecimal` for Financial Calculations:** All prices, quantities, and notional values use `BigDecimal` to avoid floating-point inaccuracies, ensuring correctness in all financial operations.
--   **Asynchronous Persistence:** Decoupling file I/O from the main application thread was a deliberate choice to maintain a snappy and responsive CLI experience.
+-   **Custom API Client:** A custom client was built using OkHttp to demonstrate a understanding of HTTP communication, request signing, and error handling, while also minimizing external dependencies.
+-   **BigDecimal for Financial Calculations:** All prices, quantities, and notional values use `BigDecimal` to avoid floating-point inaccuracies, ensuring correctness in all financial operations.
+-   **Asynchronous Persistence:** Decoupling file I/O from the main application thread to maintain a responsive CLI experience.
 
-## Testing
-
-The project is accompanied by a comprehensive QA test plan that validates all functional and non-functional requirements. This includes happy paths, failure cases, idempotency, state persistence, and real-time updates.
-
-> For a complete overview of the testing strategy and detailed test cases, please see the **[QA Test Plan](qa-test-plan-1.md)**.
-
-## Limitations
+## Limitations & Assumptions
 
 -   **Single Trading Pair:** The application is designed to trade a single symbol (e.g., `BTCUSDT`) per session, configured via environment variables.
--   **Not for High-Frequency Trading (HFT):** The application is designed for interactive use by a human trader. It is not optimized for the ultra-low latency demands of automated HFT strategies.
+-   **Not for High-Frequency Trading (HFT):** The CLI is designed primarly for human traders. It is not fully optimized for ultra-low latency demands.
 -   **Network Stability:** A stable internet connection is assumed for reliable operation, especially for the real-time `stream` command.
