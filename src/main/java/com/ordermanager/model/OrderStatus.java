@@ -24,11 +24,4 @@ public enum OrderStatus {
     public boolean isTerminal() {
         return this == FILLED || this == CANCELED || this == REJECTED || this == EXPIRED;
     }
-
-    /**
-     * Check if this order can be canceled
-     */
-    public boolean canCancel() {
-        return this == PENDING_NEW || this == NEW || this == PARTIALLY_FILLED;
-    }
 }

@@ -69,9 +69,6 @@ public class ExchangeInfoService {
         }
     }
 
-    /**
-     * Load exchange information from Binance API and populate cache.
-     */
     private void loadExchangeInfo() {
         try {
             ExchangeInfoResponse response = RetryUtils.executeWithRetry(

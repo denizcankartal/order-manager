@@ -11,7 +11,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Asynchronous state persister using BlockingQueue (producer-consumer pattern).
+ * Asynchronous state persister using BlockingQueue.
  *
  * - Producer: WebSocket thread submit state snapshots to a bounded queue
  * - Consumer: Single background thread polls queue and writes to disk

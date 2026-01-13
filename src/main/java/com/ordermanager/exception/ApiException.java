@@ -32,20 +32,6 @@ public class ApiException extends OrderManagerException {
         this.retriable = determineRetriable(statusCode);
     }
 
-    public ApiException(String message, int statusCode, String errorCode) {
-        super(message);
-        this.statusCode = statusCode;
-        this.errorCode = errorCode;
-        this.retriable = determineRetriable(statusCode);
-    }
-
-    public ApiException(String message, int statusCode, Throwable cause) {
-        super(message, cause);
-        this.statusCode = statusCode;
-        this.errorCode = null;
-        this.retriable = determineRetriable(statusCode);
-    }
-
     public ApiException(int statusCode, String message, boolean retriable) {
         super(message);
         this.statusCode = statusCode;
