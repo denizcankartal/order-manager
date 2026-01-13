@@ -8,7 +8,6 @@ import com.ordermanager.model.Order;
 import com.ordermanager.persistence.StatePersistence;
 import com.ordermanager.service.AsyncStatePersister;
 import com.ordermanager.service.BalanceService;
-import com.ordermanager.service.ExchangeInfoService;
 import com.ordermanager.service.OrderService;
 import com.ordermanager.service.StateManager;
 import com.ordermanager.service.TimeSync;
@@ -43,7 +42,6 @@ public class Main {
             restClient = new BinanceRestClient(config, timeSync);
 
             BalanceService balanceService = new BalanceService(restClient);
-            ExchangeInfoService exchangeInfoService = new ExchangeInfoService(restClient);
 
             persistence = new StatePersistence();
             StateManager stateManager = new StateManager();
@@ -58,7 +56,7 @@ public class Main {
             statePersister = new AsyncStatePersister(persistence);
             statePersister.start();
 
-            OrderService orderService = new OrderService(restClient, stateManager, statePersister, exchangeInfoService,
+            OrderService orderService = new OrderService(restClient, stateManager, statePersister,
                     config.getBaseAsset(), config.getQuoteAsset());
 
             userDataStreamService = new UserDataStreamService(stateManager, statePersister,
@@ -70,7 +68,7 @@ public class Main {
                 logger.warn("Could not reconcile open orders on startup: {}", e.getMessage());
             }
 
-            int exitCode = new CommandLine(new OrderManagerCLI(balanceService, orderService, exchangeInfoService,
+            int exitCode = new CommandLine(new OrderManagerCLI(balanceService, orderService,
                     userDataStreamService, config.getBaseAsset(), config.getQuoteAsset()))
                     .execute(args);
 

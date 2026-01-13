@@ -1,7 +1,6 @@
 package com.ordermanager.cli;
 
 import com.ordermanager.service.BalanceService;
-import com.ordermanager.service.ExchangeInfoService;
 import com.ordermanager.service.OrderService;
 import com.ordermanager.service.UserDataStreamService;
 import ch.qos.logback.classic.Level;
@@ -23,7 +22,6 @@ public class OrderManagerCLI implements Runnable {
 
     private final BalanceService balanceService;
     private final OrderService orderService;
-    private final ExchangeInfoService exchangeInfoService;
     private final UserDataStreamService userDataStreamService;
     private final String baseAsset;
     private final String quoteAsset;
@@ -32,11 +30,10 @@ public class OrderManagerCLI implements Runnable {
     private boolean verbose;
 
     public OrderManagerCLI(BalanceService balanceService, OrderService orderService,
-            ExchangeInfoService exchangeInfoService, UserDataStreamService userDataStreamService, String baseAsset,
+            UserDataStreamService userDataStreamService, String baseAsset,
             String quotedAsset) {
         this.balanceService = balanceService;
         this.orderService = orderService;
-        this.exchangeInfoService = exchangeInfoService;
         this.userDataStreamService = userDataStreamService;
         this.quoteAsset = quotedAsset;
         this.baseAsset = baseAsset;
@@ -48,10 +45,6 @@ public class OrderManagerCLI implements Runnable {
 
     public OrderService getOrderService() {
         return orderService;
-    }
-
-    public ExchangeInfoService getExchangeInfoService() {
-        return exchangeInfoService;
     }
 
     public UserDataStreamService getUserDataStreamService() {

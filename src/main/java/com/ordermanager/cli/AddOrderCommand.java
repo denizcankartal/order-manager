@@ -31,7 +31,7 @@ public class AddOrderCommand implements Callable<Integer> {
         try {
             parent.configureLogging();
 
-            var result = parent.getOrderService().placeOrder(parent.getSymbol(), side, price, quantity, clientOrderId);
+            var result = parent.getOrderService().placeOrder(side, price, quantity, clientOrderId);
 
             Order order = result.getOrder();
 

@@ -5,6 +5,7 @@ import com.ordermanager.model.Order;
 import com.ordermanager.model.OrderSide;
 import com.ordermanager.model.OrderStatus;
 import com.ordermanager.model.SymbolInfo;
+import com.ordermanager.model.dto.ExchangeInfoResponse;
 import com.ordermanager.model.dto.OrderResponse;
 import com.ordermanager.model.filter.LotSizeFilter;
 import com.ordermanager.model.filter.MinNotionalFilter;
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -26,23 +28,22 @@ class OrderServiceTest {
         private BinanceRestClient restClient;
         private StateManager stateManager;
         private AsyncStatePersister persister;
-        private ExchangeInfoService exchangeInfoService;
         private OrderService service;
 
         @BeforeEach
-        void setUp() {
-                restClient = mock(BinanceRestClient.class);
-                stateManager = mock(StateManager.class);
-                persister = mock(AsyncStatePersister.class);
-                exchangeInfoService = mock(ExchangeInfoService.class);
-                service = new OrderService(restClient, stateManager, persister, exchangeInfoService, "BTC", "USDT");
-        }
+    void setUp() {
+        restClient = mock(BinanceRestClient.class);
+        stateManager = mock(StateManager.class);
+        persister = mock(AsyncStatePersister.class);
+        ExchangeInfoResponse response = new ExchangeInfoResponse();
+        response.setSymbols(List.of(buildSymbolInfo()));
+        when(restClient.get(eq("/api/v3/exchangeInfo?symbol=BTCUSDT"), eq(ExchangeInfoResponse.class)))
+                .thenReturn(response);
+        service = new OrderService(restClient, stateManager, persister, "BTC", "USDT");
+    }
 
         @Test
         void placeOrder_propagatesWarningsAndPersists() {
-                SymbolInfo symbolInfo = buildSymbolInfo();
-                when(exchangeInfoService.getSymbolInfo("BTCUSDT")).thenReturn(symbolInfo);
-
                 OrderResponse response = new OrderResponse();
                 response.setOrderId(123L);
                 response.setClientOrderId("cli-1");
@@ -52,7 +53,7 @@ class OrderServiceTest {
                 when(restClient.postSigned(eq("/api/v3/order"), anyMap(), eq(OrderResponse.class)))
                                 .thenReturn(response);
 
-                var result = service.placeOrder("BTCUSDT", OrderSide.BUY,
+                var result = service.placeOrder(OrderSide.BUY,
                                 new BigDecimal("100.123"), // triggers price adjustment
                                 new BigDecimal("0.1"), null);
 
