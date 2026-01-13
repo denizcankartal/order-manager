@@ -232,8 +232,24 @@ public class UserDataStreamService {
             order.setTime(orderTime);
         }
 
-        stateManager.updateOrder(order);
+        if (order.isTerminal()) {
+            stateManager.removeOrder(order.getClientOrderId());
+        } else {
+            stateManager.updateOrder(order);
+        }
         persister.submitWrite(stateManager.getStateSnapshot());
+
+        System.out.println("{");
+        System.out.printf("  \"orderId\": %d,%n", order.getOrderId());
+        System.out.printf("  \"clientOrderId\": \"%s\",%n", order.getClientOrderId());
+        System.out.printf("  \"symbol\": \"%s\",%n", order.getSymbol());
+        System.out.printf("  \"side\": \"%s\",%n", order.getSide());
+        System.out.printf("  \"price\": \"%s\",%n", order.getPrice());
+        System.out.printf("  \"origQty\": \"%s\",%n", order.getOrigQty());
+        System.out.printf("  \"executedQty\": \"%s\",%n", order.getExecutedQty());
+        System.out.printf("  \"status\": \"%s\",%n", order.getStatus());
+        System.out.printf("  \"updateTime\": %d%n", order.getUpdateTime());
+        System.out.println("}");
     }
 
     private BigDecimal decimalFromNode(JsonNode node, String field) {
