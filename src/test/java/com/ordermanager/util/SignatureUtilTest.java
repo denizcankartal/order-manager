@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.*;
 class SignatureUtilTest {
 
     /**
-     * Source:
      * https://github.com/binance/binance-signature-examples
      */
     @Test

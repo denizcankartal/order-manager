@@ -46,12 +46,8 @@ public class Main {
             persistence = new StatePersistence();
             StateManager stateManager = new StateManager();
 
-            try {
-                Map<String, Order> savedOrders = persistence.load();
-                stateManager.loadState(savedOrders);
-            } catch (IOException e) {
-                logger.warn("Could not load previous orders, starting with empty state: {}", e.getMessage());
-            }
+            Map<String, Order> savedOrders = persistence.load();
+            stateManager.loadState(savedOrders);
 
             statePersister = new AsyncStatePersister(persistence);
             statePersister.start();
@@ -62,11 +58,7 @@ public class Main {
             userDataStreamService = new UserDataStreamService(stateManager, statePersister,
                     config.getWsBaseUrl(), config.getApiKey(), config.getApiSecret(), config.getRecvWindow());
 
-            try {
-                orderService.refreshOpenOrders();
-            } catch (Exception e) {
-                logger.warn("Could not reconcile open orders on startup: {}", e.getMessage());
-            }
+            orderService.refreshOpenOrders();
 
             int exitCode = new CommandLine(new OrderManagerCLI(balanceService, orderService,
                     userDataStreamService, config.getBaseAsset(), config.getQuoteAsset()))

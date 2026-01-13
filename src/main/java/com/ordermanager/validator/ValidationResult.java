@@ -82,14 +82,4 @@ public class ValidationResult {
     public boolean isValid() {
         return valid;
     }
-
-    /**
-     * Check if value was adjusted during validation.
-     *
-     * @return true if adjustedValue != originalValue
-     */
-    public boolean wasAdjusted() {
-        return originalValue != null && adjustedValue != null &&
-                originalValue.compareTo(adjustedValue) != 0;
-    }
 }

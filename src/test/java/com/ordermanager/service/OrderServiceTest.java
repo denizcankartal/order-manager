@@ -31,16 +31,16 @@ class OrderServiceTest {
         private OrderService service;
 
         @BeforeEach
-    void setUp() {
-        restClient = mock(BinanceRestClient.class);
-        stateManager = mock(StateManager.class);
-        persister = mock(AsyncStatePersister.class);
-        ExchangeInfoResponse response = new ExchangeInfoResponse();
-        response.setSymbols(List.of(buildSymbolInfo()));
-        when(restClient.get(eq("/api/v3/exchangeInfo?symbol=BTCUSDT"), eq(ExchangeInfoResponse.class)))
-                .thenReturn(response);
-        service = new OrderService(restClient, stateManager, persister, "BTC", "USDT");
-    }
+        void setUp() {
+                restClient = mock(BinanceRestClient.class);
+                stateManager = mock(StateManager.class);
+                persister = mock(AsyncStatePersister.class);
+                ExchangeInfoResponse response = new ExchangeInfoResponse();
+                response.setSymbols(List.of(buildSymbolInfo()));
+                when(restClient.get(eq("/api/v3/exchangeInfo?symbol=BTCUSDT"), eq(ExchangeInfoResponse.class)))
+                                .thenReturn(response);
+                service = new OrderService(restClient, stateManager, persister, "BTC", "USDT");
+        }
 
         @Test
         void placeOrder_propagatesWarningsAndPersists() {

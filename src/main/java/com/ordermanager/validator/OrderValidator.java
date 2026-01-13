@@ -334,16 +334,5 @@ public class OrderValidator {
         public boolean hasWarnings() {
             return !warnings.isEmpty();
         }
-
-        @Override
-        public String toString() {
-            return "OrderValidationResult{" +
-                    "valid=" + valid +
-                    ", adjustedPrice=" + adjustedPrice +
-                    ", adjustedQuantity=" + adjustedQuantity +
-                    ", warnings=" + warnings.size() +
-                    ", errors=" + errors.size() +
-                    '}';
-        }
     }
 }

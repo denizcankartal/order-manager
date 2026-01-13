@@ -13,20 +13,7 @@ import java.util.Arrays;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Unit tests for OrderValidator.
- *
- * Tests all validation scenarios:
- * - PRICE_FILTER validation and adjustment
- * - LOT_SIZE validation and adjustment
- * - MIN_NOTIONAL validation and suggestions
- * - Symbol tradability checks
- * - Integration of multiple filters
- */
 class OrderValidatorTest {
-
-        // ==================== PRICE_FILTER Tests ====================
-
         @Test
         void testValidatePrice_WithinRange_NoAdjustment() {
                 // BTCUSDT: price=$50000, tickSize=$0.01
@@ -109,15 +96,13 @@ class OrderValidatorTest {
                                 "BTCUSDT",
                                 OrderSide.BUY,
                                 new BigDecimal("0.001"),
-                                new BigDecimal("2000000"), // Above maximum
+                                new BigDecimal("2000000"), // above maximum
                                 symbolInfo,
                                 new BigDecimal("50000.00"));
 
                 assertFalse(result.isValid());
                 assertTrue(result.getErrors().get(0).contains("exceeds maximum"));
         }
-
-        // ==================== LOT_SIZE Tests ====================
 
         @Test
         void testValidateQuantity_WithinRange_NoAdjustment() {
@@ -156,7 +141,7 @@ class OrderValidatorTest {
                 OrderValidator.OrderValidationResult result = OrderValidator.validate(
                                 "BTCUSDT",
                                 OrderSide.BUY,
-                                new BigDecimal("0.0012345"), // Invalid precision
+                                new BigDecimal("0.0012345"), // invalid precision
                                 new BigDecimal("50000"),
                                 symbolInfo,
                                 new BigDecimal("50000"));
@@ -179,7 +164,7 @@ class OrderValidatorTest {
                 OrderValidator.OrderValidationResult result = OrderValidator.validate(
                                 "BTCUSDT",
                                 OrderSide.BUY,
-                                new BigDecimal("0.000001"), // Below minimum
+                                new BigDecimal("0.000001"), // Bwlow minimum
                                 new BigDecimal("50000"),
                                 symbolInfo,
                                 new BigDecimal("50000"));
@@ -208,8 +193,6 @@ class OrderValidatorTest {
                 assertFalse(result.isValid());
                 assertTrue(result.getErrors().get(0).contains("exceeds maximum"));
         }
-
-        // ==================== MIN_NOTIONAL Tests ====================
 
         @Test
         void testValidateMinNotional_AboveMinimum_Passes() {
@@ -252,11 +235,8 @@ class OrderValidatorTest {
                                 "Should provide suggestions");
         }
 
-        // ==================== Integration Tests ====================
-
         @Test
         void testValidate_AllFilters_Success() {
-                // Valid order with all filters
                 PriceFilter priceFilter = new PriceFilter(
                                 new BigDecimal("0.01"),
                                 new BigDecimal("1000000"),
@@ -286,7 +266,6 @@ class OrderValidatorTest {
 
         @Test
         void testValidate_AllFilters_AdjustsBoth() {
-                // Order requires adjustment for both price and quantity
                 PriceFilter priceFilter = new PriceFilter(
                                 new BigDecimal("0.01"),
                                 new BigDecimal("1000000"),
@@ -303,8 +282,8 @@ class OrderValidatorTest {
                 OrderValidator.OrderValidationResult result = OrderValidator.validate(
                                 "BTCUSDT",
                                 OrderSide.BUY,
-                                new BigDecimal("0.0012345"), // Will adjust to 0.00123
-                                new BigDecimal("50000.567"), // Will adjust to 50000.56
+                                new BigDecimal("0.0012345"), // adjust to 0.00123
+                                new BigDecimal("50000.567"), // adjust to 50000.56
                                 symbolInfo,
                                 new BigDecimal("50000.00"));
 
@@ -316,7 +295,6 @@ class OrderValidatorTest {
 
         @Test
         void testValidate_AllFilters_FailsMinNotionalAfterAdjustment() {
-                // After adjustment, order value falls below minimum
                 PriceFilter priceFilter = new PriceFilter(
                                 new BigDecimal("0.01"),
                                 new BigDecimal("1000000"),
@@ -343,8 +321,6 @@ class OrderValidatorTest {
                 assertFalse(result.isValid());
                 assertTrue(result.getErrors().get(0).contains("below minimum"));
         }
-
-        // ==================== Edge Cases ====================
 
         @Test
         void testValidate_SymbolNotTradable_Fails() {
@@ -378,7 +354,7 @@ class OrderValidatorTest {
                                 null,
                                 new BigDecimal("50000"));
 
-                assertTrue(result.isValid()); // Still valid but with warning
+                assertTrue(result.isValid());
                 assertTrue(result.hasWarnings());
                 assertTrue(result.getWarnings().get(0).contains("No exchange info available"));
         }
@@ -399,8 +375,6 @@ class OrderValidatorTest {
                 assertTrue(result.isValid());
                 assertFalse(result.hasWarnings());
         }
-
-        // ==================== Helper Methods ====================
 
         @Test
         void testPercentPriceBySide_OutOfRange_Fails() {
