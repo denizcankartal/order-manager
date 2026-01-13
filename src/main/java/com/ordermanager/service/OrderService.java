@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -256,22 +257,36 @@ public class OrderService {
 
         Set<String> seenClientIds = new HashSet<>();
 
+        boolean anyChanged = false;
+
         for (OrderResponse response : orderResponses) {
             Order order = stateManager.getOrder(response.getClientOrderId());
+            boolean orderChanged = false;
             if (order == null) {
                 order = new Order(response.getClientOrderId(),
                         response.getSymbol(),
                         OrderSide.valueOf(response.getSide()),
                         response.getPriceAsBigDecimal(),
                         response.getOrigQtyAsBigDecimal());
+                orderChanged = true;
+            } else {
+                Long localUpdateTime = order.getUpdateTime();
+                Long remoteUpdateTime = response.getUpdateTime();
+
+                if (!Objects.equals(localUpdateTime, remoteUpdateTime)) {
+                    orderChanged = true;
+                }
             }
 
-            order.setOrderId(response.getOrderId());
-            order.setStatus(OrderStatus.valueOf(response.getStatus()));
-            order.setExecutedQty(response.getExecutedQtyAsBigDecimal());
-            order.setUpdateTime(
-                    response.getUpdateTime() != null ? response.getUpdateTime() : System.currentTimeMillis());
-            stateManager.updateOrder(order);
+            if (orderChanged) {
+                order.setOrderId(response.getOrderId());
+                order.setStatus(OrderStatus.valueOf(response.getStatus()));
+                order.setExecutedQty(response.getExecutedQtyAsBigDecimal());
+                order.setUpdateTime(
+                        response.getUpdateTime() != null ? response.getUpdateTime() : System.currentTimeMillis());
+                stateManager.updateOrder(order);
+                anyChanged = true;
+            }
             seenClientIds.add(order.getClientOrderId());
         }
 
@@ -288,8 +303,14 @@ public class OrderService {
             }
         }
 
-        stateManager.pruneTerminalOrders();
-        persister.submitWrite(stateManager.getStateSnapshot());
+        int pruned = stateManager.pruneTerminalOrders();
+        if (pruned > 0) {
+            anyChanged = true;
+        }
+
+        if (anyChanged) {
+            persister.submitWrite(stateManager.getStateSnapshot());
+        }
     }
 
     /**
@@ -325,6 +346,14 @@ public class OrderService {
                     () -> restClient.getSigned("/api/v3/order", params, OrderResponse.class),
                     "sync order", logger);
 
+            Long responseUpdateTime = response.getUpdateTime();
+            if (localOrder != null && localOrder.getUpdateTime() != null
+                    && Objects.equals(responseUpdateTime, localOrder.getUpdateTime())) {
+                logger.debug(
+                        "fetchAndUpdateOrder - Order {} unchanged (updateTime {}), skipping state update and persistence",
+                        id, responseUpdateTime);
+                return localOrder;
+            }
             Order order = localOrder != null ? localOrder
                     : new Order(
                             response.getClientOrderId(),
