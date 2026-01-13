@@ -8,6 +8,7 @@ import com.ordermanager.model.OrderSide;
 import com.ordermanager.model.OrderStatus;
 import com.ordermanager.model.PlaceOrderResult;
 import com.ordermanager.model.SymbolInfo;
+import com.ordermanager.model.dto.ExchangeInfoResponse;
 import com.ordermanager.model.dto.OrderResponse;
 import com.ordermanager.model.dto.TickerPriceResponse;
 import com.ordermanager.model.filter.LotSizeFilter;
@@ -46,22 +47,22 @@ public class OrderService {
     private final BinanceRestClient restClient;
     private final StateManager stateManager;
     private final AsyncStatePersister persister;
-    private final ExchangeInfoService exchangeInfoService;
     private final String baseAsset;
     private final String quoteAsset;
+    private SymbolInfo symbolInfo;
+    private final String symbol;
 
     public OrderService(BinanceRestClient restClient,
             StateManager stateManager,
             AsyncStatePersister persister,
-            ExchangeInfoService exchangeInfoService,
             String baseAsset,
             String quoteAsset) {
         this.restClient = restClient;
         this.stateManager = stateManager;
         this.persister = persister;
-        this.exchangeInfoService = exchangeInfoService;
         this.baseAsset = baseAsset;
         this.quoteAsset = quoteAsset;
+        this.symbol = baseAsset + quoteAsset;
     }
 
     /**
@@ -74,7 +75,7 @@ public class OrderService {
      * @param userProvidedClientId Optional client order ID (null for auto-generate)
      * @return Order with exchange orderId and status
      */
-    public PlaceOrderResult placeOrder(String symbol, OrderSide side, BigDecimal price, BigDecimal quantity,
+    public PlaceOrderResult placeOrder(OrderSide side, BigDecimal price, BigDecimal quantity,
             String userProvidedClientId) {
 
         BigDecimal originalPrice = price;
@@ -82,8 +83,6 @@ public class OrderService {
         String clientOrderId = (userProvidedClientId != null && !userProvidedClientId.isEmpty())
                 ? userProvidedClientId
                 : generateClientOrderId();
-
-        SymbolInfo symbolInfo = exchangeInfoService.getSymbolInfo(symbol);
 
         BigDecimal referencePrice = null;
         try {
@@ -93,8 +92,11 @@ public class OrderService {
                     symbol, e.getMessage());
         }
 
-        OrderValidationResult validation = null;
-        validation = OrderValidator.validate(symbol, side, quantity, price, symbolInfo,
+        if (symbolInfo == null) {
+            loadSymbolInfo();
+        }
+
+        OrderValidationResult validation = OrderValidator.validate(symbol, side, quantity, price, symbolInfo,
                 referencePrice);
 
         if (!validation.isValid()) {
@@ -179,6 +181,39 @@ public class OrderService {
                 logger);
 
         return response.getPriceAsBigDecimal();
+    }
+
+    private void loadSymbolInfo() {
+        if (symbol == null || symbol.isBlank()) {
+            throw new IllegalArgumentException("Symbol must be configured to load symbol info");
+        }
+        if (symbolInfo != null) {
+            return;
+        }
+
+        try {
+            ExchangeInfoResponse response = RetryUtils.executeWithRetry(
+                    () -> restClient.get("/api/v3/exchangeInfo?symbol=" + symbol, ExchangeInfoResponse.class),
+                    "load exchange info", logger);
+
+            if (response == null || response.getSymbols() == null) {
+                logger.warn("Exchange info response contains no symbols");
+                return;
+            }
+
+            for (SymbolInfo symbolInfo : response.getSymbols()) {
+                if (symbolInfo.getSymbol() != null && symbolInfo.getSymbol().equals(this.symbol)) {
+                    this.symbolInfo = symbolInfo;
+                    return;
+                }
+            }
+            logger.warn("Exchange info did not include symbol {}", symbol);
+        } catch (ApiException e) {
+            throw new RuntimeException(String.format(
+                    "Failed to load symbol info: %s (error code: %d)", e.getMessage(), e.getStatusCode()), e);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to initialize exchange info cache", e);
+        }
     }
 
     /**
