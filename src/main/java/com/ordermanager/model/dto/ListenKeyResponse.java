@@ -2,6 +2,9 @@ package com.ordermanager.model.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+/**
+ * https://developers.binance.com/docs/binance-spot-api-docs/user-data-stream
+ */
 public class ListenKeyResponse {
 
     @JsonProperty("listenKey")

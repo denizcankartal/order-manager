@@ -143,14 +143,37 @@ BINANCE_WS_BASE_URL=wss://stream.testnet.binance.vision/ws
 USER_STREAM_KEEPALIVE_MINUTES=30
 ```
 
+ListenKey lifecycle:
+1. `POST /api/v3/userDataStream` to create a listenKey.
+2. Connect to `wss://stream.testnet.binance.vision/ws/<listenKey>`.
+3. `PUT /api/v3/userDataStream` every ~30 minutes to keep it alive.
+4. `DELETE /api/v3/userDataStream` on shutdown.
+
 Note: Running `stream` and other commands concurrently can cause last-writer-wins updates to the local state file.
 If you see WebSocket 404 errors, override `BINANCE_WS_BASE_URL` to the correct testnet endpoint.
 ```
 
 ## Architecture
-### System Design
+### System Design Overview
 
-TODO: THIS WILL COME LATER
+This CLI is composed of four main layers:
+- **CLI layer (Picocli)**: Parses commands and prints output.
+- **Service layer**: Orchestrates REST calls, validation, and state updates.
+- **State layer**: In-memory order cache with async persistence to disk.
+- **Client layer**: Signed REST client + optional user data stream (WebSocket).
+
+Data flow for a typical command:
+1. CLI command calls a service method (e.g., `placeOrder`, `cancelOrder`).
+2. Service validates inputs (filters) and calls Binance REST.
+3. Response updates in-memory state.
+4. State snapshot is queued to the async persister for disk write.
+
+WebSocket flow (stream mode):
+1. ListenKey is created via REST.
+2. WebSocket connects to the listenKey stream.
+3. Execution reports update in-memory state.
+4. Each update queues a snapshot to the async persister.
+
 ### Key Components
 
 **Order Lifecycle**
@@ -239,68 +262,23 @@ Attempt 5: delay = 16s (max attempts reached, fail)
 
 ### Thread Model
 
-Several concurrent threads are used for optimal performance and responsiveness:
+**Main Thread (CLI)**
+- Parses CLI args and runs commands.
+- Calls REST endpoints and updates in-memory state.
+- Queues snapshots for async persistence.
 
-**Thread 1: Main Thread (CLI)**
-Purpose: User interaction and command execution
+**Async State Persister Thread**
+- Consumes queued state snapshots and writes `orders.json` to disk.
+- All disk I/O happens here, not on the CLI or WebSocket thread.
 
-Responsibilities:
+**WebSocket Thread (stream mode)**
+- OkHttp WebSocket callbacks run on OkHttp internal threads.
+- Execution reports update in-memory state and enqueue snapshots.
+- No separate event queue or processor thread is used.
 
-- Parse CLI arguments
-- Execute service calls (place, cancel, list, show, balances)
-- Query state (in-memory, non-blocking)
-- Display formatted output
-
-Blocking: Only on network I/O (REST API calls)
-
-**Thread 2: WebSocket Receiver (Producer)**
-
-Purpose: Receive real-time events from Binance
-
-Responsibilities:
-
-- Maintain WebSocket connection
-- Parse incoming JSON messages -> ExecutionReportEvent objects
-- Push events to BlockingQueue (non-blocking offer)
-- Handle reconnection with exponential backoff
-
-Blocking: Never (uses non-blocking queue offer)
-
-**Thread 3: Event Processor (Consumer)**
-
-Purpose: Process WebSocket events asynchronously
-
-Responsibilities:
-
-- Poll BlockingQueue
-- Update StateManager with order status changes
-- Log significant events (fills, cancellations) (TODO: SHOULD WE HAVE A SEPERATE THREAD FOR LOGGIN)
-- Trigger async disk writes
-
-Blocking: Only when queue is empty (waiting for events)
-
-**Thread 4: Disk Writer**
-
-Purpose: Asynchronous state persistence
-
-Responsibilities:
-
-- Poll write queue for state snapshots
-- Write JSON to disk
-- Handle I/O errors gracefully
-
-Blocking: During disk I/O
-
-**Thread 5: Keepalive Scheduler**
-
-Purpose: Extend WebSocket listenKey lifetime
-
-Responsibilities:
-
-- Send PUT request to Binance every 30 minutes
-- Prevent listenKey expiration (60-minute lifetime)
-
-Blocking: Only during HTTP request
+**Keepalive Scheduler**
+- Periodically sends listenKey keepalive `PUT` calls.
+- Runs on a scheduled executor.
 
 ## Design Decisions
 

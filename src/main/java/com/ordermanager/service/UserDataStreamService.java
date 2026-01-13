@@ -24,6 +24,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * https://developers.binance.com/docs/binance-spot-api-docs/user-data-stream
+ */
 public class UserDataStreamService {
 
     private static final Logger logger = LoggerFactory.getLogger(UserDataStreamService.class);
