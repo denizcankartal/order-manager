@@ -142,7 +142,6 @@ public class OrderService {
         } catch (ApiException e) {
             stateManager.removeOrder(order.getClientOrderId());
             persister.submitWrite(stateManager.getStateSnapshot());
-            logger.error("Failed to place order: order={}, error={}", order, e.getMessage());
 
             BinanceErrorType type = e.getErrorType();
             switch (type) {
@@ -161,36 +160,6 @@ public class OrderService {
                             e.getMessage(),
                             formatSymbolFilters(symbolInfo),
                             formatValidationAdjustments(validation, originalPrice, originalQuantity)));
-                case INVALID_SYMBOL:
-                    throw new IllegalArgumentException(String.format(
-                            "Invalid symbol %s. Error: %s (code: %d)", symbol, e.getMessage(), e.getStatusCode()));
-                case MARKET_CLOSED:
-                    throw new IllegalStateException(String.format(
-                            "Market is closed for %s. Error: %s (code: %d)", symbol, e.getMessage(),
-                            e.getStatusCode()));
-                case ACCOUNT_TRADING_DISABLED:
-                    throw new IllegalStateException(String.format(
-                            "Trading disabled for this account. Error: %s (code: %d)", e.getMessage(),
-                            e.getStatusCode()));
-                case AUTH_ERROR:
-                    throw new IllegalStateException(String.format(
-                            "Authentication/permissions error. Check BINANCE_API_KEY/BINANCE_API_SECRET. Error: %s (code: %d)",
-                            e.getMessage(), e.getStatusCode()));
-                case INVALID_SIGNATURE:
-                    throw new IllegalStateException(String.format(
-                            "Invalid request signature. Check BINANCE_API_SECRET. Error: %s (code: %d)",
-                            e.getMessage(), e.getStatusCode()));
-                case TIMESTAMP_ERROR:
-                    throw new IllegalStateException(
-                            "Clock drift detected. Sync system time and retry. Error: " + e.getMessage());
-                case RATE_LIMIT:
-                    throw new IllegalStateException(
-                            "Rate limit exceeded. Wait 60 seconds and retry. Error: " + e.getMessage());
-                case NETWORK_ERROR:
-                    throw new IllegalStateException("Network error while placing order: " + e.getMessage());
-                case ORDER_REJECTED:
-                    throw new IllegalStateException(String.format(
-                            "Order rejected: %s (error code: %d)", e.getMessage(), e.getStatusCode()));
                 default:
                     throw new RuntimeException(String.format(
                             "Failed to place order: %s (error code: %d)", e.getMessage(), e.getStatusCode()), e);
@@ -267,33 +236,6 @@ public class OrderService {
                 case ORDER_NOT_FOUND:
                     throw new IllegalStateException(String.format(
                             "Order not found for id=%s; it may already be closed or never existed.", id));
-                case CANCEL_REJECTED:
-                    throw new IllegalStateException(String.format(
-                            "Cancel rejected for id=%s: %s (error code: %d)", id, e.getMessage(), e.getStatusCode()));
-                case MARKET_CLOSED:
-                    throw new IllegalStateException(String.format(
-                            "Market is closed for %s. Error: %s (code: %d)", symbol, e.getMessage(),
-                            e.getStatusCode()));
-                case ACCOUNT_TRADING_DISABLED:
-                    throw new IllegalStateException(String.format(
-                            "Trading disabled for this account. Error: %s (code: %d)", e.getMessage(),
-                            e.getStatusCode()));
-                case AUTH_ERROR:
-                    throw new IllegalStateException(String.format(
-                            "Authentication/permissions error. Check BINANCE_API_KEY/BINANCE_API_SECRET. Error: %s (code: %d)",
-                            e.getMessage(), e.getStatusCode()));
-                case INVALID_SIGNATURE:
-                    throw new IllegalStateException(String.format(
-                            "Invalid request signature. Check BINANCE_API_SECRET. Error: %s (code: %d)",
-                            e.getMessage(), e.getStatusCode()));
-                case TIMESTAMP_ERROR:
-                    throw new IllegalStateException(
-                            "Clock drift detected. Sync system time and retry. Error: " + e.getMessage());
-                case RATE_LIMIT:
-                    throw new IllegalStateException(
-                            "Rate limit exceeded. Wait 60 seconds and retry. Error: " + e.getMessage());
-                case NETWORK_ERROR:
-                    throw new IllegalStateException("Network error while canceling order: " + e.getMessage());
                 default:
                     throw new RuntimeException(String.format(
                             "Failed to cancel order %s: %s (error code: %d)", id, e.getMessage(),
@@ -328,20 +270,6 @@ public class OrderService {
                     () -> restClient.getSigned("/api/v3/openOrders", new HashMap<>(), OrderResponse[].class),
                     "refresh open orders", logger);
         } catch (ApiException e) {
-            BinanceErrorType type = e.getErrorType();
-            if (type == BinanceErrorType.RATE_LIMIT) {
-                throw new IllegalStateException(
-                        "Rate limit exceeded. Wait 60 seconds and retry. Error: " + e.getMessage());
-            }
-            if (type == BinanceErrorType.TIMESTAMP_ERROR) {
-                throw new IllegalStateException(
-                        "Clock drift detected. Sync system time and retry. Error: " + e.getMessage());
-            }
-            if (type == BinanceErrorType.AUTH_ERROR || type == BinanceErrorType.INVALID_SIGNATURE) {
-                throw new IllegalStateException(String.format(
-                        "Authentication/permissions error. Check BINANCE_API_KEY/BINANCE_API_SECRET. Error: %s (code: %d)",
-                        e.getMessage(), e.getStatusCode()));
-            }
             throw new RuntimeException(String.format(
                     "Failed to refresh open orders: %s (error code: %d)", e.getMessage(), e.getStatusCode()), e);
         }
@@ -473,8 +401,6 @@ public class OrderService {
             return order;
 
         } catch (ApiException e) {
-            logger.error("Failed to sync order with exchange: symbol={}, id={}, error={}", symbol, id, e.getMessage());
-
             BinanceErrorType type = e.getErrorType();
             if (type == BinanceErrorType.ORDER_NOT_FOUND) {
                 if (localOrder != null && localOrder.isTerminal()) {
@@ -482,15 +408,6 @@ public class OrderService {
                 }
                 throw new IllegalStateException(String.format(
                         "Order not found for id=%s; it may already be closed or never existed.", id));
-            }
-            if (type == BinanceErrorType.RATE_LIMIT) {
-                throw new IllegalStateException(
-                        "Rate limit exceeded. Wait 60 seconds and retry. Error: " + e.getMessage());
-            }
-            if (type == BinanceErrorType.AUTH_ERROR || type == BinanceErrorType.INVALID_SIGNATURE) {
-                throw new IllegalStateException(String.format(
-                        "Authentication/permissions error. Check BINANCE_API_KEY/BINANCE_API_SECRET. Error: %s (code: %d)",
-                        e.getMessage(), e.getStatusCode()));
             }
             throw new RuntimeException(String.format(
                     "Failed to sync order %s: %s (error code: %d)", id, e.getMessage(), e.getStatusCode()), e);

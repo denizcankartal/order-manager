@@ -59,18 +59,6 @@ public class BalanceService {
                     .collect(Collectors.toList());
 
         } catch (ApiException e) {
-            logger.error("Failed to fetch balances: error={}", e.getMessage());
-
-            if (e.isRateLimit()) {
-                throw new IllegalStateException(
-                        "Rate limit exceeded. Wait 60 seconds and retry. Error: " + e.getMessage());
-            }
-
-            if (e.isTimestampError()) {
-                throw new IllegalStateException(
-                        "Clock drift detected. Sync system time and retry. Error: " + e.getMessage());
-            }
-
             throw new RuntimeException(String.format(
                     "Failed to fetch account balances: %s (error code: %d)", e.getMessage(), e.getStatusCode()), e);
         }
