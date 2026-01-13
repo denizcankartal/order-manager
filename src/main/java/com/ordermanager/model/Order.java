@@ -55,7 +55,7 @@ public class Order {
      * Last update timestamp (milliseconds since epoch)
      */
     @JsonProperty("updateTime")
-    private long updateTime;
+    private Long updateTime;
 
     public Order() {
     }
@@ -143,7 +143,7 @@ public class Order {
         this.time = time;
     }
 
-    public long getUpdateTime() {
+    public Long getUpdateTime() {
         return updateTime;
     }
 
