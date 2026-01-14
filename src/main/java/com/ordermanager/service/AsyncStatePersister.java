@@ -114,7 +114,7 @@ public class AsyncStatePersister {
 
         if (!added) {
             // queue is full - drop oldest and add new
-            writeQueue.poll(); // Remove oldest
+            writeQueue.poll(); // remove oldest
             writeQueue.offer(stateSnapshot); // add new
             logger.debug("Write queue full, dropped oldest snapshot");
         }

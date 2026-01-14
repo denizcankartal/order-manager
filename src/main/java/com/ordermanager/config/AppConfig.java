@@ -25,9 +25,6 @@ public class AppConfig {
         this.quoteAsset = quoteAsset;
     }
 
-    /**
-     * Load configuration from environment variables
-     */
     public static AppConfig loadFromEnv() {
         String apiKey = getRequiredEnv("BINANCE_API_KEY");
         String apiSecret = getRequiredEnv("BINANCE_API_SECRET");

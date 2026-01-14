@@ -130,7 +130,7 @@ public class StateManager {
                 return order;
             }
         } catch (NumberFormatException e) {
-            // Not a number, try as clientOrderId
+            // not a number, try as clientOrderId
         }
         return getOrderByClientId(id);
     }
