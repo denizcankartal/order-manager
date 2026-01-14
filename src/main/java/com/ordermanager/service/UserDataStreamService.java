@@ -266,7 +266,7 @@ public class UserDataStreamService {
             if (order.isTerminal()) {
                 stateManager.removeOrder(order.getClientOrderId());
                 logger.debug("Removed terminal order: {}", order.getClientOrderId());
-
+                persister.submitWrite(stateManager.getStateSnapshot());
                 stop();
 
                 Runnable callback = onTrackingCompleted;
@@ -279,6 +279,7 @@ public class UserDataStreamService {
                 }
             } else {
                 stateManager.updateOrder(order);
+                persister.submitWrite(stateManager.getStateSnapshot());
                 logger.debug("Updated order: {}", order.getClientOrderId());
             }
         }
