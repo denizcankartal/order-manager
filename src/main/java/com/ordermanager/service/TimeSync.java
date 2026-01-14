@@ -50,7 +50,7 @@ public class TimeSync {
             long localTimeAfter = System.currentTimeMillis();
 
             if (!response.isSuccessful()) {
-                throw new ApiException("Failed to sync time: HTTP " + response.code());
+                throw new ApiException("Server time sync failed", response.code(), true);
             }
 
             String body = response.body() != null ? response.body().string() : "";
@@ -64,7 +64,7 @@ public class TimeSync {
             logger.info("Time synchronized. Offset: {}ms, Server time: {}, Local time: {}",
                     timeOffset, serverTime, localTimeAvg);
         } catch (IOException e) {
-            throw new ApiException("Failed to sync time: " + e.getMessage(), e);
+            throw new ApiException("Failed to sync time: " + e.getMessage(), 503, true);
         }
     }
 

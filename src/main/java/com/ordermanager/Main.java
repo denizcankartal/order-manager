@@ -12,6 +12,7 @@ import com.ordermanager.service.OrderService;
 import com.ordermanager.service.StateManager;
 import com.ordermanager.service.TimeSync;
 import com.ordermanager.service.UserDataStreamService;
+import com.ordermanager.util.RetryUtils;
 
 import ch.qos.logback.classic.Level;
 import okhttp3.OkHttpClient;
@@ -37,7 +38,12 @@ public class Main {
 
             AppConfig config = AppConfig.loadFromEnv();
             TimeSync timeSync = new TimeSync(new OkHttpClient(), config.getBaseUrl());
-            timeSync.sync();
+
+            RetryUtils.executeWithRetry(() -> {
+                timeSync.sync();
+                return null;
+            }, "Initial Time Synchronization", logger);
+
             restClient = new BinanceRestClient(config, timeSync);
 
             BalanceService balanceService = new BalanceService(restClient);

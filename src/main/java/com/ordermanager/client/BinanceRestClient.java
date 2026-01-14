@@ -157,7 +157,7 @@ public class BinanceRestClient {
             return parsedResponse;
 
         } catch (IOException e) {
-            throw new ApiException(0, "Network error: " + e.getMessage(), true);
+            throw new ApiException("Network error: " + e.getMessage(), 503, true);
         }
     }
 
@@ -173,12 +173,12 @@ public class BinanceRestClient {
             ErrorResponse errorResponse = objectMapper.readValue(body, ErrorResponse.class);
             logger.error("Binance API error: code={}, msg={}", errorResponse.getCode(), errorResponse.getMsg());
 
-            return new ApiException(errorResponse.getCode(), errorResponse.getMsg(),
+            return new ApiException(errorResponse.getMsg(), errorResponse.getCode(),
                     isRetriable(errorResponse.getCode()));
 
         } catch (Exception e) {
             logger.error("Failed to parse error response: {}", body);
-            return new ApiException(httpCode, "HTTP " + httpCode + ": " + body, isRetriable(httpCode));
+            return new ApiException("HTTP " + httpCode + ": " + body, httpCode, isRetriable(httpCode));
         }
     }
 

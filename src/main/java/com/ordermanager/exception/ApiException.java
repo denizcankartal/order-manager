@@ -32,16 +32,16 @@ public class ApiException extends OrderManagerException {
         this.retriable = determineRetriable(statusCode);
     }
 
-    public ApiException(int statusCode, String message, boolean retriable) {
+    public ApiException(String message, int statusCode, boolean retriable) {
         super(message);
         this.statusCode = statusCode;
         this.errorCode = null;
         this.retriable = retriable;
     }
 
-    private boolean determineRetriable(int code) {
-        // 429 (rate limit), 418 (IP ban), 5xx (server errors) are retriable
-        return code == 429 || code == 418 || code >= 500;
+    private static boolean determineRetriable(int code) {
+        // 429: Rate limit, 418: IP Ban (Teapot), 5xx: Server issues
+        return code == 429 || code == 418 || (code >= 500 && code < 600);
     }
 
     public int getStatusCode() {

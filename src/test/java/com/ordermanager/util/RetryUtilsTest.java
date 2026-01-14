@@ -20,7 +20,7 @@ class RetryUtilsTest {
         Supplier<String> supplier = () -> {
             int attempt = attempts.incrementAndGet();
             if (attempt == 1) {
-                throw new ApiException(429, "rate limit", true);
+                throw new ApiException("rate limit", 429, true);
             }
             return "ok";
         };
@@ -52,7 +52,7 @@ class RetryUtilsTest {
         Supplier<String> supplier = () -> {
             int attempt = attempts.incrementAndGet();
             if (attempt < 3) {
-                throw new ApiException(418, "i am a teapot", true);
+                throw new ApiException("i am a teapot", 418, true);
             }
             return "ok";
         };
@@ -69,7 +69,7 @@ class RetryUtilsTest {
         Supplier<String> supplier = () -> {
             int attempt = attempts.incrementAndGet();
             if (attempt < 2) {
-                throw new ApiException(-1021, "timestamp", true);
+                throw new ApiException("timestamp", -1021, true);
             }
             return "ok";
         };
