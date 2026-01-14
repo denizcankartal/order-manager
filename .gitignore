@@ -27,3 +27,5 @@ orders.json
 *.ear
 *.class
 !.mvn/wrapper/maven-wrapper.jar
+
+venv
