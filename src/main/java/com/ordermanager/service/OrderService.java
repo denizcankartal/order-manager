@@ -115,11 +115,7 @@ public class OrderService {
         BigDecimal validatedQuantity = validation.getAdjustedQuantity();
 
         Order order = new Order(clientOrderId, symbol, side, validatedPrice, validatedQuantity);
-        order.setStatus(OrderStatus.PENDING_NEW);
         order.setOrderId(null); // No exchange ID yet
-
-        stateManager.addOrder(order);
-        persister.submitWrite(stateManager.getStateSnapshot());
 
         Map<String, String> params = new HashMap<>();
         params.put("symbol", symbol);
@@ -140,17 +136,12 @@ public class OrderService {
             order.setTime(response.getTransactTime());
             order.setUpdateTime(System.currentTimeMillis());
 
-            stateManager.updateOrder(order);
+            stateManager.addOrder(order);
             persister.submitWrite(stateManager.getStateSnapshot());
 
             return new PlaceOrderResult(order, validation.getWarnings());
 
         } catch (ApiException e) {
-            if (order.isLocal()) {
-                // remove just added order from state
-                stateManager.removeOrder(order.getClientOrderId());
-                persister.submitWrite(stateManager.getStateSnapshot());
-            }
             BinanceErrorType type = e.getErrorType();
             switch (type) {
                 case DUPLICATE_ORDER:
@@ -173,11 +164,6 @@ public class OrderService {
                             "Failed to place order: %s (error code: %d)", e.getMessage(), e.getStatusCode()), e);
             }
         } catch (RuntimeException e) {
-            if (order.isLocal()) {
-                // remove just added order from state
-                stateManager.removeOrder(order.getClientOrderId());
-                persister.submitWrite(stateManager.getStateSnapshot());
-            }
             throw e;
         }
     }
@@ -267,7 +253,6 @@ public class OrderService {
             order.setExecutedQty(response.getExecutedQtyAsBigDecimal());
             order.setUpdateTime(System.currentTimeMillis());
 
-            System.out.println("CANCEL ORDER: " + order);
             if (order.isTerminal()) {
                 stateManager.removeOrder(order.getClientOrderId());
             } else {
@@ -360,7 +345,6 @@ public class OrderService {
         }
 
         // Any locally active orders not returned by the exchange are now terminal
-        // including new pending orders
         List<Order> active = stateManager.getOpenOrders();
 
         for (Order o : active) {

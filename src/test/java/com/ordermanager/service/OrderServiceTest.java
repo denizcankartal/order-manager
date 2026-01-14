@@ -61,7 +61,6 @@ class OrderServiceTest {
                 assertFalse(result.getWarnings().isEmpty(), "Adjusted price should produce a warning");
 
                 verify(stateManager, times(1)).addOrder(any(Order.class));
-                verify(stateManager, atLeastOnce()).updateOrder(any(Order.class));
                 verify(persister, atLeastOnce()).submitWrite(anyMap());
         }
 

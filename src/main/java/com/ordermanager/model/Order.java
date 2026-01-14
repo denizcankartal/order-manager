@@ -67,7 +67,7 @@ public class Order {
         this.price = price;
         this.origQty = origQty;
         this.executedQty = BigDecimal.ZERO;
-        this.status = OrderStatus.PENDING_NEW;
+        this.status = null;
         this.updateTime = System.currentTimeMillis();
     }
 
@@ -163,10 +163,6 @@ public class Order {
      */
     public boolean isTerminal() {
         return status != null && status.isTerminal();
-    }
-
-    public boolean isLocal() {
-        return status != null && status.isLocal();
     }
 
     /**

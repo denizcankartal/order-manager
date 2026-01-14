@@ -1,7 +1,6 @@
 package com.ordermanager.model;
 
 public enum OrderStatus {
-    PENDING_NEW, // Order created locally, not yet sent to exchange
     NEW, // Order accepted by the exchange
     PARTIALLY_FILLED, // Order partially filled
     FILLED, // Order completely filled
@@ -14,7 +13,7 @@ public enum OrderStatus {
      * canceled
      */
     public boolean isActive() {
-        return this == PENDING_NEW || this == NEW || this == PARTIALLY_FILLED;
+        return this == NEW || this == PARTIALLY_FILLED;
     }
 
     /**
@@ -23,12 +22,5 @@ public enum OrderStatus {
      */
     public boolean isTerminal() {
         return this == FILLED || this == CANCELED || this == REJECTED || this == EXPIRED;
-    }
-
-    /**
-     * Check if this status represents a local state (order is just placed)
-     */
-    public boolean isLocal() {
-        return this == PENDING_NEW;
     }
 }
