@@ -1,24 +1,26 @@
 package com.ordermanager.service;
 
+import java.math.BigDecimal;
+import java.util.Objects;
+import java.util.UUID;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ordermanager.model.Order;
-import com.ordermanager.model.OrderSide;
 import com.ordermanager.model.OrderStatus;
 import com.ordermanager.util.SignatureUtil;
+
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 import okhttp3.WebSocket;
 import okhttp3.WebSocketListener;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.math.BigDecimal;
-import java.util.UUID;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 /**
  * https://developers.binance.com/docs/binance-spot-api-docs/user-data-stream
@@ -43,6 +45,9 @@ public class UserDataStreamService {
     private boolean reconnecting;
     private int reconnectAttempts;
     private Integer subscriptionId;
+    private String clientOrderId;
+
+    private volatile Runnable onTrackingCompleted;
 
     public UserDataStreamService(StateManager stateManager,
             AsyncStatePersister persister,
@@ -63,8 +68,17 @@ public class UserDataStreamService {
         this.reconnectLock = new Object();
     }
 
-    public void start() {
+    /**
+     * set a callback that will be invoked when the currently tracked order becomes
+     * terminal.
+     */
+    public void setOnTrackingCompleted(Runnable onTrackingCompleted) {
+        this.onTrackingCompleted = onTrackingCompleted;
+    }
+
+    public void startTracking(String clientOrderId) {
         connectWebSocket();
+        this.clientOrderId = clientOrderId;
     }
 
     public void stop() {
@@ -192,31 +206,35 @@ public class UserDataStreamService {
     }
 
     private void handleExecutionReport(JsonNode node) {
-        String symbol = node.path("s").asText(null);
-        String clientOrderId = node.path("c").asText(null);
-        long orderId = node.path("i").asLong(0);
+        if (this.clientOrderId == null || this.clientOrderId.isEmpty()) {
+            return;
+        }
 
-        Order order = null;
-        if (clientOrderId != null) {
-            order = stateManager.getOrderByClientId(clientOrderId);
+        String c = node.path("c").asText(""); // Client order ID
+        String C = node.path("C").asText(""); // Original client order ID; This is the ID of the order being canceled
+
+        String clientOrderId = null;
+        if (Objects.equals(this.clientOrderId, c)) {
+            clientOrderId = c;
+        } else if (Objects.equals(this.clientOrderId, C)) {
+            clientOrderId = C;
+        } else {
+            return;
         }
-        if (order == null && orderId > 0) {
-            order = stateManager.getOrderByOrderId(orderId);
-        }
+
+        Order order = stateManager.getOrderByClientId(clientOrderId);
 
         if (order == null) {
-            if (clientOrderId == null || symbol == null) {
-                return;
-            }
-            OrderSide side = OrderSide.valueOf(node.path("S").asText("BUY"));
-            BigDecimal price = decimalFromNode(node, "p");
-            BigDecimal origQty = decimalFromNode(node, "q");
-            order = new Order(clientOrderId, symbol, side, price, origQty);
+            return;
         }
 
-        order.setOrderId(orderId > 0 ? orderId : order.getOrderId());
-        order.setStatus(OrderStatus.valueOf(node.path("X").asText("NEW")));
-        order.setExecutedQty(decimalFromNode(node, "z"));
+        String orderStatus = node.path("X").asText(null);
+        if (orderStatus != null) {
+            order.setStatus(OrderStatus.valueOf(orderStatus));
+        }
+
+        String value = node.path("z").asText("0");
+        order.setExecutedQty(new BigDecimal(value));
 
         long updateTime = node.path("T").asLong(0);
         if (updateTime == 0) {
@@ -232,13 +250,6 @@ public class UserDataStreamService {
             order.setTime(orderTime);
         }
 
-        // if (order.isTerminal()) {
-        // stateManager.removeOrder(order.getClientOrderId());
-        // } else {
-        // stateManager.updateOrder(order);
-        // }
-        // persister.submitWrite(stateManager.getStateSnapshot());
-
         System.out.println("{");
         System.out.printf("  \"orderId\": %d,%n", order.getOrderId());
         System.out.printf("  \"clientOrderId\": \"%s\",%n", order.getClientOrderId());
@@ -250,11 +261,27 @@ public class UserDataStreamService {
         System.out.printf("  \"status\": \"%s\",%n", order.getStatus());
         System.out.printf("  \"updateTime\": %d%n", order.getUpdateTime());
         System.out.println("}");
-    }
 
-    private BigDecimal decimalFromNode(JsonNode node, String field) {
-        String value = node.path(field).asText("0");
-        return new BigDecimal(value);
+        if (stateManager.getOrderByClientId(clientOrderId) != null) {
+            if (order.isTerminal()) {
+                stateManager.removeOrder(order.getClientOrderId());
+                logger.debug("Removed terminal order: {}", order.getClientOrderId());
+
+                stop();
+
+                Runnable callback = onTrackingCompleted;
+                if (callback != null) {
+                    try {
+                        callback.run();
+                    } catch (Exception e) {
+                        logger.error("Error in onTrackingCompleted callback: {}", e.getMessage());
+                    }
+                }
+            } else {
+                stateManager.updateOrder(order);
+                logger.debug("Updated order: {}", order.getClientOrderId());
+            }
+        }
     }
 
     private void scheduleReconnect(String reason) {

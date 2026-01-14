@@ -10,7 +10,7 @@ CLI for managing Spot `LIMIT` orders on the Binance Spot Testnet, allows users t
 ## Features
 
 - **Full Order Lifecycle Management**: `add`, `cancel`, `list`, and `show` commands.
-- **Real-time State Tracking**: A persistent WebSocket connection (`stream` command) for live order and account updates.
+- **Real-time State Tracking**: An optional persistent WebSocket connection for live order updates.
 - **Robust State Management**: Maintains a local state cache with asynchronous persistence and reconciles with the exchange on startup to ensure data consistency.
 - **Intelligent Order Validation**: Pre-validates orders against exchange filters (`PRICE_FILTER`, `LOT_SIZE`, `MIN_NOTIONAL`, etc.), with auto-adjustment for tick and step sizes.
 - **Resilient API Communication**: Features automatic retries with exponential backoff for rate limits and network errors.
@@ -192,4 +192,4 @@ The `stream` command implements the User Data Stream for real-time updates.
 
 -   **Single Trading Pair:** The application is designed to trade a single symbol (e.g., `BTCUSDT`) per session, configured via environment variables.
 -   **Not for High-Frequency Trading (HFT):** The CLI is designed primarly for human traders. It is not fully optimized for ultra-low latency demands.
--   **Network Stability:** A stable internet connection is assumed for reliable operation, especially for the real-time `stream` command.
+-   **Network Stability:** A stable internet connection is assumed.

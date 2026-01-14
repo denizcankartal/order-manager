@@ -8,6 +8,7 @@ import picocli.CommandLine.ParentCommand;
 
 import java.math.BigDecimal;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
 
 @Command(name = "add", description = "Place a new LIMIT order")
 public class AddOrderCommand implements Callable<Integer> {
@@ -25,6 +26,9 @@ public class AddOrderCommand implements Callable<Integer> {
 
     @Option(names = { "--client-id" }, description = "Client order ID (optional, auto-generated if not provided)")
     private String clientOrderId;
+
+    @Option(names = { "--track" }, description = "Track this order after placing it")
+    private boolean track;
 
     @Override
     public Integer call() {
@@ -55,6 +59,37 @@ public class AddOrderCommand implements Callable<Integer> {
             System.out.printf("  \"clientOrderId\": \"%s\",%n", order.getClientOrderId());
             System.out.printf("  \"status\": \"%s\",%n", order.getStatus());
             System.out.println("}");
+
+            if (track && !order.isTerminal()) {
+                try {
+                    parent.configureLogging();
+                    if (parent.getUserDataStreamService() == null) {
+                        System.err.println("User data stream service is not available.");
+                        return 1;
+                    }
+
+                    parent.getUserDataStreamService().startTracking(order.getClientOrderId());
+                    System.out.println("User data stream started. Press Ctrl+C to stop.");
+
+                    CountDownLatch latch = new CountDownLatch(1);
+
+                    parent.getUserDataStreamService().setOnTrackingCompleted(() -> {
+                        latch.countDown();
+                    });
+
+                    Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                        parent.getUserDataStreamService().stop();
+                        latch.countDown();
+                    }));
+
+                    latch.await();
+                    return 0;
+
+                } catch (Exception e) {
+                    System.err.println("Failed to start user data stream: " + e.getMessage());
+                    return 1;
+                }
+            }
             return 0;
 
         } catch (Exception e) {

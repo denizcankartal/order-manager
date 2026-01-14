@@ -136,8 +136,10 @@ public class OrderService {
             order.setTime(response.getTransactTime());
             order.setUpdateTime(System.currentTimeMillis());
 
-            stateManager.addOrder(order);
-            persister.submitWrite(stateManager.getStateSnapshot());
+            if (!order.isTerminal()) {
+                stateManager.addOrder(order);
+                persister.submitWrite(stateManager.getStateSnapshot());
+            }
 
             return new PlaceOrderResult(order, validation.getWarnings());
 

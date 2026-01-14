@@ -15,8 +15,7 @@ import picocli.CommandLine.Command;
         AddOrderCommand.class,
         CancelOrderCommand.class,
         ListOrdersCommand.class,
-        ShowOrderCommand.class,
-        StreamCommand.class
+        ShowOrderCommand.class
 })
 public class OrderManagerCLI implements Runnable {
 
