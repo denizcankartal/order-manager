@@ -3,10 +3,6 @@ package com.ordermanager.model;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * Lightweight wrapper for a placed order along with any validation warnings
- * (e.g., auto-adjusted price/qty).
- */
 public class PlaceOrderResult {
     private final Order order;
     private final List<String> warnings;

@@ -126,23 +126,14 @@ public class OrderResponse {
         this.updateTime = updateTime;
     }
 
-    /**
-     * Helper to get executedQty as BigDecimal
-     */
     public BigDecimal getExecutedQtyAsBigDecimal() {
         return executedQty != null ? new BigDecimal(executedQty) : BigDecimal.ZERO;
     }
 
-    /**
-     * Helper to get price as BigDecimal
-     */
     public BigDecimal getPriceAsBigDecimal() {
         return price != null ? new BigDecimal(price) : BigDecimal.ZERO;
     }
 
-    /**
-     * Helper to get origQty as BigDecimal
-     */
     public BigDecimal getOrigQtyAsBigDecimal() {
         return origQty != null ? new BigDecimal(origQty) : BigDecimal.ZERO;
     }

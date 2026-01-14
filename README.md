@@ -156,11 +156,12 @@ User data stream started. Press Ctrl+C to stop.
 
 ### State Management & Reconciliation
 
-The application maintains a local snapshot of all tracked orders to provide instant feedback (`list` command) and reduce reliance on API calls.
+The application maintains a local snapshot of orders to provide instant feedback (`list` command), enable idempotent UX for repeated `cancel` calls, and reduce reliance on API calls.
 
 -   **In-Memory Storage:** Orders are held in a `ConcurrentHashMap` within the `StateManager` for fast, thread-safe lookups by either `clientOrderId` or `orderId`.
 -   **Asynchronous Persistence:** To avoid blocking CLI operations, state is written to disk on a dedicated background thread managed by `AsyncStatePersister`. This ensures a responsive user experience while guaranteeing eventual persistence.
 -   **Startup Reconciliation:** On startup, the application fetches all open orders from the exchange (`GET /api/v3/openOrders`). It then reconciles this information with the state loaded from `orders.json`, updating statuses for any orders that were modified or closed while the CLI was offline.
+-   **Terminal Order Archiving:** When an order becomes terminal (`FILLED`, `CANCELED`, etc.), the CLI stops tracking it as "open", but retains it in the local state as a lightweight history record (bounded by retention settings).
 
 ### Order Validation & Filters
 
@@ -193,3 +194,12 @@ The `stream` command implements the User Data Stream for real-time updates.
 -   **Single Trading Pair:** The application is designed to trade a single symbol (e.g., `BTCUSDT`) per session, configured via environment variables.
 -   **Not for High-Frequency Trading (HFT):** The CLI is designed primarly for human traders. It is not fully optimized for ultra-low latency demands.
 -   **Network Stability:** A stable internet connection is assumed.
+
+## State retention configuration
+
+The local `orders.json` includes both open and terminal orders. Open orders are used for `list`; terminal orders are retained as a small local history and for idempotent `cancel` UX.
+
+Retention is controlled via optional env vars:
+
+- `ORDER_STATE_MAX_TERMINAL_ORDERS` (default: `1000`): maximum number of terminal orders to keep locally.
+- `ORDER_STATE_TERMINAL_TTL_DAYS` (default: `30`): terminal orders older than this are pruned.

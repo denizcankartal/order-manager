@@ -132,8 +132,6 @@ public class StateManager {
         } catch (NumberFormatException e) {
             // Not a number, try as clientOrderId
         }
-
-        // Try as clientOrderId
         return getOrderByClientId(id);
     }
 
@@ -158,8 +156,7 @@ public class StateManager {
     public List<Order> getOpenOrders(String symbol) {
         return ordersByClientId.values().stream()
                 .filter(order -> order.getSymbol().equals(symbol))
-                .filter(order -> order.getStatus() == OrderStatus.NEW ||
-                        order.getStatus() == OrderStatus.PARTIALLY_FILLED)
+                .filter(order -> order.isActive())
                 .collect(Collectors.toList());
     }
 
@@ -181,28 +178,6 @@ public class StateManager {
         }
 
         return order;
-    }
-
-    /**
-     * Prune terminal orders (FILLED, CANCELED, REJECTED, EXPIRED).
-     *
-     * This helps keep memory usage low by removing completed orders.
-     *
-     * @return Number of orders pruned
-     */
-    public int pruneTerminalOrders() {
-        List<String> toRemove = ordersByClientId.values().stream()
-                .filter(Order::isTerminal)
-                .map(Order::getClientOrderId)
-                .collect(Collectors.toList());
-
-        toRemove.forEach(this::removeOrder);
-
-        if (!toRemove.isEmpty()) {
-            logger.info("Pruned {} terminal orders", toRemove.size());
-        }
-
-        return toRemove.size();
     }
 
     /**
@@ -229,7 +204,6 @@ public class StateManager {
 
         orders.values().stream()
                 .filter(Objects::nonNull)
-                .filter(order -> !order.isTerminal())
                 .forEach(this::addOrder);
 
         logger.info("Loaded {} orders into state", ordersByClientId.size());

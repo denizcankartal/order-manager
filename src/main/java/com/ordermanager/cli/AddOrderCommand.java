@@ -27,9 +27,6 @@ public class AddOrderCommand implements Callable<Integer> {
     @Option(names = { "--client-id" }, description = "Client order ID (optional, auto-generated if not provided)")
     private String clientOrderId;
 
-    @Option(names = { "--track" }, description = "Track this order after placing it")
-    private boolean track;
-
     @Override
     public Integer call() {
         try {
@@ -60,7 +57,7 @@ public class AddOrderCommand implements Callable<Integer> {
             System.out.printf("  \"status\": \"%s\",%n", order.getStatus());
             System.out.println("}");
 
-            if (track && !order.isTerminal()) {
+            if (!order.isTerminal()) {
                 try {
                     parent.configureLogging();
                     if (parent.getUserDataStreamService() == null) {

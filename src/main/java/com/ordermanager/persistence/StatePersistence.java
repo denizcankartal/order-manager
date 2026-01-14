@@ -14,10 +14,6 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Handles persistence of order state to/from disk at
- * ~/.order-manager/orders.json
- */
 public class StatePersistence {
 
     private static final Logger logger = LoggerFactory.getLogger(StatePersistence.class);
@@ -34,7 +30,6 @@ public class StatePersistence {
         this.objectMapper = new ObjectMapper();
         this.objectMapper.enable(SerializationFeature.INDENT_OUTPUT);
 
-        // Create directory if it doesn't exist
         try {
             Files.createDirectories(stateFilePath.getParent());
             ensureStateFileExists();
@@ -52,12 +47,6 @@ public class StatePersistence {
         objectMapper.writeValue(stateFilePath.toFile(), new OrderState(new HashMap<>()));
     }
 
-    /**
-     * Save orders to disk.
-     *
-     * @param orders Map of orders (clientOrderId -> Order)
-     * @throws IOException if save fails
-     */
     public void save(Map<String, Order> orders) throws IOException {
         OrderState state = new OrderState(orders);
 
@@ -69,12 +58,6 @@ public class StatePersistence {
         logger.info("Saved {} orders to disk", orders.size());
     }
 
-    /**
-     * Load orders from disk.
-     *
-     * @return Map of orders (clientOrderId -> Order)
-     * @throws IOException if load fails
-     */
     public Map<String, Order> load() throws IOException {
         File file = stateFilePath.toFile();
 

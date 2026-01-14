@@ -20,13 +20,6 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-/**
- * REST client for Binance API.
- *
- * Handles HTTP communication (GET, POST, DELETE, PUT), Request signing
- * (HMAC-SHA256), Error parsing and exception handling and
- * Connection pooling and timeouts
- */
 public class BinanceRestClient {
 
     private static final Logger logger = LoggerFactory.getLogger(BinanceRestClient.class);
@@ -159,7 +152,6 @@ public class BinanceRestClient {
                 throw ex;
             }
 
-            // Deserialize response to specified type
             T parsedResponse = objectMapper.readValue(body, responseType);
 
             return parsedResponse;
@@ -185,7 +177,6 @@ public class BinanceRestClient {
                     isRetriable(errorResponse.getCode()));
 
         } catch (Exception e) {
-            // If we can't parse error response, throw generic exception
             logger.error("Failed to parse error response: {}", body);
             return new ApiException(httpCode, "HTTP " + httpCode + ": " + body, isRetriable(httpCode));
         }
@@ -238,7 +229,7 @@ public class BinanceRestClient {
         }
 
         return params.entrySet().stream()
-                .sorted(Map.Entry.comparingByKey()) // Sort for consistency
+                .sorted(Map.Entry.comparingByKey()) // sort for consistency
                 .map(e -> urlEncode(e.getKey()) + "=" + urlEncode(e.getValue()))
                 .collect(Collectors.joining("&"));
     }

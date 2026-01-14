@@ -24,22 +24,9 @@ import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
 
-/**
- * Service for order management operations.
- *
- * Responsibilities:
- * - Place LIMIT orders (validate -> add to state -> send to exchange)
- * - Cancel orders (idempotent)
- * - Query order status
- * - List open orders
- * - Sync local state with exchange
- */
 public class OrderService {
 
     private static final Logger logger = LoggerFactory.getLogger(OrderService.class);
@@ -115,7 +102,7 @@ public class OrderService {
         BigDecimal validatedQuantity = validation.getAdjustedQuantity();
 
         Order order = new Order(clientOrderId, symbol, side, validatedPrice, validatedQuantity);
-        order.setOrderId(null); // No exchange ID yet
+        order.setOrderId(null); // no exchange ID yet
 
         Map<String, String> params = new HashMap<>();
         params.put("symbol", symbol);
@@ -136,10 +123,8 @@ public class OrderService {
             order.setTime(response.getTransactTime());
             order.setUpdateTime(System.currentTimeMillis());
 
-            if (!order.isTerminal()) {
-                stateManager.addOrder(order);
-                persister.submitWrite(stateManager.getStateSnapshot());
-            }
+            stateManager.addOrder(order);
+            persister.submitWrite(stateManager.getStateSnapshot());
 
             return new PlaceOrderResult(order, validation.getWarnings());
 
@@ -222,16 +207,13 @@ public class OrderService {
      */
     public Order cancelOrder(String id, String symbol) {
         Order order = stateManager.getOrder(id);
-        if (order != null && order.isTerminal()) {
-            logger.info("Order already in terminal state: {}, status={}", id, order.getStatus());
-            logger.error("Terminal order should not be in internal state: id={}, symbol={}", id, order.getSymbol());
-            return order;
+        if (order == null) {
+            throw new IllegalStateException(String.format(
+                    "Order not found for id=%s; it may already be closed or never existed.", id));
         }
 
-        order = fetchAndUpdateOrder(id, symbol);
-
         if (order.isTerminal()) {
-            logger.info("Order already in terminal state: {}, status={}", id, order.getStatus());
+            System.out.println("Order already is CANCELLED: " + id);
             return order;
         }
 
@@ -255,11 +237,7 @@ public class OrderService {
             order.setExecutedQty(response.getExecutedQtyAsBigDecimal());
             order.setUpdateTime(System.currentTimeMillis());
 
-            if (order.isTerminal()) {
-                stateManager.removeOrder(order.getClientOrderId());
-            } else {
-                stateManager.updateOrder(order);
-            }
+            stateManager.updateOrder(order);
             persister.submitWrite(stateManager.getStateSnapshot());
 
             return order;
@@ -284,8 +262,6 @@ public class OrderService {
     /**
      * List open orders from local state.
      * 
-     * For fresh data, use refreshOpenOrders first.
-     * 
      * @param symbol Trading pair (null for all symbols)
      * @return List of open orders
      */
@@ -297,166 +273,18 @@ public class OrderService {
         }
     }
 
-    /**
-     * Refresh open orders from the exchange and reconcile local state.
-     */
-    public void refreshOpenOrders() {
-        OrderResponse[] orderResponses;
-        try {
-            orderResponses = RetryUtils.executeWithRetry(
-                    () -> restClient.getSigned("/api/v3/openOrders", new HashMap<>(), OrderResponse[].class),
-                    "refresh open orders", logger);
-        } catch (ApiException e) {
-            throw new RuntimeException(String.format(
-                    "Failed to refresh open orders: %s (error code: %d)", e.getMessage(), e.getStatusCode()), e);
-        }
-
-        Set<String> openOrderClientIds = new HashSet<>();
-
-        boolean anyChanged = false;
-
-        for (OrderResponse response : orderResponses) {
-            Order order = stateManager.getOrder(response.getClientOrderId());
-            boolean orderChanged = false;
-            if (order == null) {
-                order = new Order(response.getClientOrderId(),
-                        response.getSymbol(),
-                        OrderSide.valueOf(response.getSide()),
-                        response.getPriceAsBigDecimal(),
-                        response.getOrigQtyAsBigDecimal());
-                orderChanged = true;
-            } else {
-                Long localUpdateTime = order.getUpdateTime();
-                Long remoteUpdateTime = response.getUpdateTime();
-
-                if (!Objects.equals(localUpdateTime, remoteUpdateTime)) {
-                    orderChanged = true;
-                }
-            }
-
-            if (orderChanged) {
-                order.setOrderId(response.getOrderId());
-                order.setStatus(OrderStatus.valueOf(response.getStatus()));
-                order.setExecutedQty(response.getExecutedQtyAsBigDecimal());
-                order.setUpdateTime(
-                        response.getUpdateTime() != null ? response.getUpdateTime() : System.currentTimeMillis());
-                stateManager.updateOrder(order);
-                anyChanged = true;
-            }
-            openOrderClientIds.add(order.getClientOrderId());
-        }
-
-        // Any locally active orders not returned by the exchange are now terminal
-        List<Order> active = stateManager.getOpenOrders();
-
-        for (Order o : active) {
-            if (!openOrderClientIds.contains(o.getClientOrderId())) {
-                stateManager.removeOrder(o.getClientOrderId());
-                anyChanged = true;
-            }
-        }
-
-        int pruned = stateManager.pruneTerminalOrders();
-        if (pruned > 0) {
-            anyChanged = true;
-        }
-
-        if (anyChanged) {
-            persister.submitWrite(stateManager.getStateSnapshot());
-        }
-    }
-
-    /**
-     * Fetch an order from the exchange, update local state, and return it.
-     *
-     * @param id     orderId or clientOrderId
-     * @param symbol
-     */
-    public Order fetchAndUpdateOrder(String id, String symbol) {
+    public Order getOrder(String id, String symbol) {
         Order localOrder = stateManager.getOrder(id);
-
-        Map<String, String> params = new HashMap<>();
-        params.put("symbol", symbol);
-
-        if (localOrder != null) {
-            if (localOrder.getOrderId() != null) {
-                params.put("orderId", String.valueOf(localOrder.getOrderId()));
-            }
-            if (localOrder.getClientOrderId() != null && !localOrder.getClientOrderId().isEmpty()) {
-                params.put("origClientOrderId", localOrder.getClientOrderId());
-            }
-        } else {
-            // Order is not in local
-            try {
-                Long orderId = Long.parseLong(id);
-                params.put("orderId", String.valueOf(orderId));
-            } catch (NumberFormatException e) {
-                params.put("origClientOrderId", id);
-            }
+        if (localOrder == null) {
+            throw new IllegalStateException(String.format(
+                    "Order not found for id=%s; it may already be closed or never existed.", id));
         }
-
-        try {
-            OrderResponse response = RetryUtils.executeWithRetry(
-                    () -> restClient.getSigned("/api/v3/order", params, OrderResponse.class),
-                    "sync order", logger);
-
-            Long responseUpdateTime = response.getUpdateTime();
-            if (localOrder != null && localOrder.getUpdateTime() != null
-                    && Objects.equals(responseUpdateTime, localOrder.getUpdateTime())) {
-                logger.debug(
-                        "fetchAndUpdateOrder - Order {} unchanged (updateTime {}), skipping state update and persistence",
-                        id, responseUpdateTime);
-                return localOrder;
-            }
-            Order order = localOrder != null ? localOrder
-                    : new Order(
-                            response.getClientOrderId(),
-                            response.getSymbol(),
-                            OrderSide.valueOf(response.getSide()),
-                            response.getPriceAsBigDecimal(),
-                            response.getOrigQtyAsBigDecimal());
-
-            order.setOrderId(response.getOrderId());
-            order.setStatus(OrderStatus.valueOf(response.getStatus()));
-            order.setExecutedQty(response.getExecutedQtyAsBigDecimal());
-            order.setUpdateTime(
-                    response.getUpdateTime() != null ? response.getUpdateTime() : System.currentTimeMillis());
-            order.setTime(response.getTransactTime());
-
-            if (order.isTerminal()) {
-                // Order became terminal
-                stateManager.removeOrder(order.getClientOrderId());
-                logger.info("Removed terminal order from state: clientOrderId={}, orderId={}, status={}",
-                        order.getClientOrderId(), order.getOrderId(), order.getStatus());
-            } else {
-                stateManager.updateOrder(order);
-            }
-
-            persister.submitWrite(stateManager.getStateSnapshot());
-
-            return order;
-
-        } catch (ApiException e) {
-            BinanceErrorType type = e.getErrorType();
-            if (type == BinanceErrorType.ORDER_NOT_FOUND) {
-                if (localOrder != null && localOrder.isTerminal()) {
-                    stateManager.removeOrder(localOrder.getClientOrderId());
-                    persister.submitWrite(stateManager.getStateSnapshot());
-                    logger.error("Terminal order should not be in internal state: id={}, symbol={}", id,
-                            localOrder.getSymbol());
-                    return localOrder;
-                }
-                throw new IllegalStateException(String.format(
-                        "Order not found for id=%s; it may already be closed or never existed.", id));
-            }
-            throw new RuntimeException(String.format(
-                    "Failed to sync order %s: %s (error code: %d)", id, e.getMessage(), e.getStatusCode()), e);
-        }
+        return localOrder;
     }
 
     private String generateClientOrderId() {
         long timestamp = System.currentTimeMillis();
-        return String.format("cli-%d", timestamp);
+        return String.format("cli-%d-%s", timestamp, java.util.UUID.randomUUID().toString().substring(0, 8));
     }
 
     private String formatSymbolFilters(SymbolInfo symbolInfo) {

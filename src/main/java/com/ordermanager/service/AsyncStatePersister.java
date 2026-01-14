@@ -32,7 +32,7 @@ public class AsyncStatePersister {
         this.writeQueue = new LinkedBlockingQueue<>(QUEUE_CAPACITY);
         this.writerThread = Executors.newSingleThreadExecutor(r -> {
             Thread t = new Thread(r, "AsyncStateWriter");
-            t.setDaemon(true); // Allow JVM to exit
+            t.setDaemon(true); // allow JVM to exit
             return t;
         });
         this.running = new AtomicBoolean(false);
@@ -56,11 +56,11 @@ public class AsyncStatePersister {
     private void writeLoop() {
         while (running.get() || !writeQueue.isEmpty()) {
             try {
-                // Block waiting for next snapshot
+                // block waiting for next snapshot
                 Map<String, Order> snapshot = writeQueue.poll(1, TimeUnit.SECONDS);
 
                 if (snapshot != null) {
-                    // Drain queue to get latest snapshot (deduplication)
+                    // drain queue to get latest snapshot (deduplication)
                     Map<String, Order> latest = snapshot;
                     Map<String, Order> next;
                     int drained = 0;
@@ -74,14 +74,14 @@ public class AsyncStatePersister {
                         logger.debug("Drained {} older snapshots, writing latest", drained);
                     }
 
-                    // Write latest snapshot to disk
+                    // write latest snapshot to disk
                     try {
                         persistence.save(latest);
                         logger.debug("Wrote {} orders to disk", latest.size());
                     } catch (IOException e) {
                         logger.error("Failed to write state to disk: {}", e.getMessage());
-                        // Don't put it back - it would block the queue
-                        // Next write will capture current state
+                        // don't put it back - it would block the queue mext write will capture current
+                        // state
                     }
                 }
 
@@ -109,13 +109,13 @@ public class AsyncStatePersister {
             return;
         }
 
-        // Try to add to queue (non-blocking)
+        // try to add to queue (non-blocking)
         boolean added = writeQueue.offer(stateSnapshot);
 
         if (!added) {
-            // Queue is full - drop oldest and add new
+            // queue is full - drop oldest and add new
             writeQueue.poll(); // Remove oldest
-            writeQueue.offer(stateSnapshot); // Add new
+            writeQueue.offer(stateSnapshot); // add new
             logger.debug("Write queue full, dropped oldest snapshot");
         }
     }
@@ -130,7 +130,7 @@ public class AsyncStatePersister {
             return;
         }
 
-        // Drain queue and write latest snapshot
+        // drain queue and write latest snapshot
         Map<String, Order> latest = null;
         Map<String, Order> snapshot;
 

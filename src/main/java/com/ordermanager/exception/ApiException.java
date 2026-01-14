@@ -56,37 +56,22 @@ public class ApiException extends OrderManagerException {
         return retriable;
     }
 
-    /**
-     * Check if this error is due to insufficient balance
-     */
     public boolean isInsufficientBalance() {
         return statusCode == -2010 && messageContains("insufficient balance");
     }
 
-    /**
-     * Check if this error indicates a duplicate order submission
-     */
     public boolean isDuplicateOrder() {
         return statusCode == -2010 && messageContains("duplicate order sent");
     }
 
-    /**
-     * Check if this error indicates an unknown order
-     */
     public boolean isUnknownOrder() {
         return statusCode == -2013 || messageContains("unknown order sent");
     }
 
-    /**
-     * Check if this error is a filter violation (LOT_SIZE, PRICE_FILTER, etc.)
-     */
     public boolean isFilterViolation() {
         return statusCode == -1013 && messageContains("filter failure");
     }
 
-    /**
-     * Check if this error is due to timestamp issues
-     */
     public boolean isTimestampError() {
         return statusCode == -1021;
     }
@@ -113,15 +98,5 @@ public class ApiException extends OrderManagerException {
             return false;
         }
         return message.toLowerCase().contains(needle.toLowerCase());
-    }
-
-    @Override
-    public String toString() {
-        return "ApiException{" +
-                "statusCode=" + statusCode +
-                ", errorCode='" + errorCode + '\'' +
-                ", retriable=" + retriable +
-                ", message='" + getMessage() + '\'' +
-                '}';
     }
 }

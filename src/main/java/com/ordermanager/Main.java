@@ -53,7 +53,6 @@ public class Main {
 
             OrderService orderService = new OrderService(restClient, stateManager, statePersister,
                     config.getBaseAsset(), config.getQuoteAsset());
-            orderService.refreshOpenOrders();
 
             userDataStreamService = new UserDataStreamService(stateManager, statePersister,
                     config.getWsBaseUrl(), config.getApiKey(), config.getApiSecret(), config.getRecvWindow());

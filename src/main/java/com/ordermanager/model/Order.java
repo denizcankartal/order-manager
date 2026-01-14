@@ -52,7 +52,7 @@ public class Order {
     private Long time;
 
     /**
-     * Last update timestamp (milliseconds since epoch)
+     * milliseconds since epoch
      */
     @JsonProperty("updateTime")
     private Long updateTime;

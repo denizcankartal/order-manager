@@ -57,13 +57,6 @@ public class SymbolInfo {
         this.filters = filters;
     }
 
-    /**
-     * Get a specific filter by type.
-     *
-     * @param filterClass Filter class (e.g., PriceFilter.class)
-     * @param <T>         Filter type
-     * @return Filter instance or null if not found
-     */
     private <T extends SymbolFilter> T getFilter(Class<T> filterClass) {
         if (filters == null) {
             return null;
@@ -78,47 +71,22 @@ public class SymbolInfo {
         return null;
     }
 
-    /**
-     * Get PRICE_FILTER for this symbol.
-     *
-     * @return PriceFilter or null if not found
-     */
     public PriceFilter getPriceFilter() {
         return getFilter(PriceFilter.class);
     }
 
-    /**
-     * Get LOT_SIZE filter for this symbol.
-     *
-     * @return LotSizeFilter or null if not found
-     */
     public LotSizeFilter getLotSizeFilter() {
         return getFilter(LotSizeFilter.class);
     }
 
-    /**
-     * Get MIN_NOTIONAL filter for this symbol.
-     *
-     * @return MinNotionalFilter or null if not found
-     */
     public MinNotionalFilter getMinNotionalFilter() {
         return getFilter(MinNotionalFilter.class);
     }
 
-    /**
-     * Get PERCENT_PRICE_BY_SIDE filter for this symbol.
-     *
-     * @return PercentPriceBySideFilter or null if not found
-     */
     public PercentPriceBySideFilter getPercentPriceBySideFilter() {
         return getFilter(PercentPriceBySideFilter.class);
     }
 
-    /**
-     * Check if symbol is currently tradable.
-     *
-     * @return true if status is "TRADING"
-     */
     public boolean isTradingEnabled() {
         return "TRADING".equals(status);
     }

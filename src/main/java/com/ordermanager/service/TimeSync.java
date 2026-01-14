@@ -37,7 +37,7 @@ public class TimeSync {
 
     /**
      * Synchronize time with Binance server.
-     * Should be called on startup and periodically.
+     * Should be called on startup and periodically for long running processes
      */
     public void sync() {
         Request request = new Request.Builder()

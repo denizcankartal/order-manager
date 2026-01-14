@@ -263,10 +263,10 @@ public class UserDataStreamService {
         System.out.println("}");
 
         if (stateManager.getOrderByClientId(clientOrderId) != null) {
+            stateManager.updateOrder(order);
+            persister.submitWrite(stateManager.getStateSnapshot());
             if (order.isTerminal()) {
-                stateManager.removeOrder(order.getClientOrderId());
-                logger.debug("Removed terminal order: {}", order.getClientOrderId());
-                persister.submitWrite(stateManager.getStateSnapshot());
+                logger.debug("Archived terminal order: {}", order.getClientOrderId());
                 stop();
 
                 Runnable callback = onTrackingCompleted;
@@ -277,10 +277,6 @@ public class UserDataStreamService {
                         logger.error("Error in onTrackingCompleted callback: {}", e.getMessage());
                     }
                 }
-            } else {
-                stateManager.updateOrder(order);
-                persister.submitWrite(stateManager.getStateSnapshot());
-                logger.debug("Updated order: {}", order.getClientOrderId());
             }
         }
     }

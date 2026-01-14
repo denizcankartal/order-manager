@@ -6,9 +6,6 @@ import com.ordermanager.model.Order;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Object for order state persistence.
- */
 public class OrderState {
 
     @JsonProperty("version")

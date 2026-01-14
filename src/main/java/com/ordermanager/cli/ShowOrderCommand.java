@@ -20,7 +20,7 @@ public class ShowOrderCommand implements Callable<Integer> {
     public Integer call() {
         try {
             parent.configureLogging();
-            Order order = parent.getOrderService().fetchAndUpdateOrder(orderId, parent.getSymbol());
+            Order order = parent.getOrderService().getOrder(orderId, parent.getSymbol());
 
             System.out.println("{");
             System.out.printf("  \"orderId\": %d,%n", order.getOrderId());
