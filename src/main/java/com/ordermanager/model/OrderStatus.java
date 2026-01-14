@@ -24,4 +24,11 @@ public enum OrderStatus {
     public boolean isTerminal() {
         return this == FILLED || this == CANCELED || this == REJECTED || this == EXPIRED;
     }
+
+    /**
+     * Check if this status represents a local state (order is just placed)
+     */
+    public boolean isLocal() {
+        return this == PENDING_NEW;
+    }
 }

@@ -165,6 +165,10 @@ public class Order {
         return status != null && status.isTerminal();
     }
 
+    public boolean isLocal() {
+        return status != null && status.isLocal();
+    }
+
     /**
      * Orders are equal if they have the same clientOrderId
      */

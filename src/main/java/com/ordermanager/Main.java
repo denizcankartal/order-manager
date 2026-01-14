@@ -53,20 +53,18 @@ public class Main {
 
             OrderService orderService = new OrderService(restClient, stateManager, statePersister,
                     config.getBaseAsset(), config.getQuoteAsset());
+            orderService.refreshOpenOrders();
 
             userDataStreamService = new UserDataStreamService(stateManager, statePersister,
                     config.getWsBaseUrl(), config.getApiKey(), config.getApiSecret(), config.getRecvWindow());
-
-            orderService.refreshOpenOrders();
 
             int exitCode = new CommandLine(new OrderManagerCLI(balanceService, orderService,
                     userDataStreamService, config.getBaseAsset(), config.getQuoteAsset()))
                     .execute(args);
 
             logger.debug("Command completed with exit code: {}", exitCode);
-            if (userDataStreamService != null) {
-                userDataStreamService.stop();
-            }
+            userDataStreamService.stop();
+
             statePersister.shutdown(5);
             restClient.shutdown();
 
@@ -83,7 +81,7 @@ public class Main {
                 try {
                     statePersister.shutdown(5);
                 } catch (Exception cleanupError) {
-                    logger.error("Error during emergency cleanup", cleanupError);
+                    logger.error("Error during state persister cleanup", cleanupError);
                 }
             }
             if (userDataStreamService != null) {
@@ -97,7 +95,7 @@ public class Main {
                 try {
                     restClient.shutdown();
                 } catch (Exception cleanupError) {
-                    logger.error("Error during emergency cleanup", cleanupError);
+                    logger.error("Error during rest client cleanup", cleanupError);
                 }
             }
 

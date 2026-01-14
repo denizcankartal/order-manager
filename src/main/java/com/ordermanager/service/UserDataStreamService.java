@@ -232,12 +232,12 @@ public class UserDataStreamService {
             order.setTime(orderTime);
         }
 
-        if (order.isTerminal()) {
-            stateManager.removeOrder(order.getClientOrderId());
-        } else {
-            stateManager.updateOrder(order);
-        }
-        persister.submitWrite(stateManager.getStateSnapshot());
+        // if (order.isTerminal()) {
+        // stateManager.removeOrder(order.getClientOrderId());
+        // } else {
+        // stateManager.updateOrder(order);
+        // }
+        // persister.submitWrite(stateManager.getStateSnapshot());
 
         System.out.println("{");
         System.out.printf("  \"orderId\": %d,%n", order.getOrderId());

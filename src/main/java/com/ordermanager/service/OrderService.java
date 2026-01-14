@@ -78,6 +78,13 @@ public class OrderService {
     public PlaceOrderResult placeOrder(OrderSide side, BigDecimal price, BigDecimal quantity,
             String userProvidedClientId) {
 
+        if (userProvidedClientId != null && !userProvidedClientId.isEmpty()
+                && stateManager.getOrderByClientId(userProvidedClientId) != null) {
+            throw new IllegalStateException(String.format(
+                    "Duplicate order sent (clientId=%s). Use a new --client-id.",
+                    userProvidedClientId));
+        }
+
         BigDecimal originalPrice = price;
         BigDecimal originalQuantity = quantity;
         String clientOrderId = (userProvidedClientId != null && !userProvidedClientId.isEmpty())
@@ -121,10 +128,7 @@ public class OrderService {
         params.put("timeInForce", "GTC");
         params.put("quantity", validatedQuantity.toPlainString());
         params.put("price", validatedPrice.toPlainString());
-
-        if (clientOrderId != null && !clientOrderId.isEmpty()) {
-            params.put("newClientOrderId", clientOrderId);
-        }
+        params.put("newClientOrderId", clientOrderId);
 
         try {
             OrderResponse response = RetryUtils.executeWithRetry(
@@ -142,9 +146,11 @@ public class OrderService {
             return new PlaceOrderResult(order, validation.getWarnings());
 
         } catch (ApiException e) {
-            stateManager.removeOrder(order.getClientOrderId());
-            persister.submitWrite(stateManager.getStateSnapshot());
-
+            if (order.isLocal()) {
+                // remove just added order from state
+                stateManager.removeOrder(order.getClientOrderId());
+                persister.submitWrite(stateManager.getStateSnapshot());
+            }
             BinanceErrorType type = e.getErrorType();
             switch (type) {
                 case DUPLICATE_ORDER:
@@ -167,8 +173,11 @@ public class OrderService {
                             "Failed to place order: %s (error code: %d)", e.getMessage(), e.getStatusCode()), e);
             }
         } catch (RuntimeException e) {
-            stateManager.removeOrder(order.getClientOrderId());
-            persister.submitWrite(stateManager.getStateSnapshot());
+            if (order.isLocal()) {
+                // remove just added order from state
+                stateManager.removeOrder(order.getClientOrderId());
+                persister.submitWrite(stateManager.getStateSnapshot());
+            }
             throw e;
         }
     }
@@ -227,8 +236,7 @@ public class OrderService {
         Order order = stateManager.getOrder(id);
         if (order != null && order.isTerminal()) {
             logger.info("Order already in terminal state: {}, status={}", id, order.getStatus());
-            stateManager.removeOrder(order.getClientOrderId());
-            persister.submitWrite(stateManager.getStateSnapshot());
+            logger.error("Terminal order should not be in internal state: id={}, symbol={}", id, order.getSymbol());
             return order;
         }
 
@@ -236,8 +244,6 @@ public class OrderService {
 
         if (order.isTerminal()) {
             logger.info("Order already in terminal state: {}, status={}", id, order.getStatus());
-            stateManager.removeOrder(order.getClientOrderId());
-            persister.submitWrite(stateManager.getStateSnapshot());
             return order;
         }
 
@@ -261,6 +267,7 @@ public class OrderService {
             order.setExecutedQty(response.getExecutedQtyAsBigDecimal());
             order.setUpdateTime(System.currentTimeMillis());
 
+            System.out.println("CANCEL ORDER: " + order);
             if (order.isTerminal()) {
                 stateManager.removeOrder(order.getClientOrderId());
             } else {
@@ -317,7 +324,7 @@ public class OrderService {
                     "Failed to refresh open orders: %s (error code: %d)", e.getMessage(), e.getStatusCode()), e);
         }
 
-        Set<String> seenClientIds = new HashSet<>();
+        Set<String> openOrderClientIds = new HashSet<>();
 
         boolean anyChanged = false;
 
@@ -349,19 +356,17 @@ public class OrderService {
                 stateManager.updateOrder(order);
                 anyChanged = true;
             }
-            seenClientIds.add(order.getClientOrderId());
+            openOrderClientIds.add(order.getClientOrderId());
         }
 
         // Any locally active orders not returned by the exchange are now terminal
+        // including new pending orders
         List<Order> active = stateManager.getOpenOrders();
 
         for (Order o : active) {
-            if (!seenClientIds.contains(o.getClientOrderId())) {
-                try {
-                    fetchAndUpdateOrder(o.getClientOrderId(), o.getSymbol());
-                } catch (Exception e) {
-                    logger.warn("Failed to reconcile order {}: {}", o.getClientOrderId(), e.getMessage());
-                }
+            if (!openOrderClientIds.contains(o.getClientOrderId())) {
+                stateManager.removeOrder(o.getClientOrderId());
+                anyChanged = true;
             }
         }
 
@@ -395,6 +400,7 @@ public class OrderService {
                 params.put("origClientOrderId", localOrder.getClientOrderId());
             }
         } else {
+            // Order is not in local
             try {
                 Long orderId = Long.parseLong(id);
                 params.put("orderId", String.valueOf(orderId));
@@ -432,6 +438,7 @@ public class OrderService {
             order.setTime(response.getTransactTime());
 
             if (order.isTerminal()) {
+                // Order became terminal
                 stateManager.removeOrder(order.getClientOrderId());
                 logger.info("Removed terminal order from state: clientOrderId={}, orderId={}, status={}",
                         order.getClientOrderId(), order.getOrderId(), order.getStatus());
@@ -447,6 +454,10 @@ public class OrderService {
             BinanceErrorType type = e.getErrorType();
             if (type == BinanceErrorType.ORDER_NOT_FOUND) {
                 if (localOrder != null && localOrder.isTerminal()) {
+                    stateManager.removeOrder(localOrder.getClientOrderId());
+                    persister.submitWrite(stateManager.getStateSnapshot());
+                    logger.error("Terminal order should not be in internal state: id={}, symbol={}", id,
+                            localOrder.getSymbol());
                     return localOrder;
                 }
                 throw new IllegalStateException(String.format(
