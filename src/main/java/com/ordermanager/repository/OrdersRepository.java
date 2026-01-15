@@ -13,10 +13,4 @@ public interface OrdersRepository {
     Optional<Order> findByOrderId(Long orderId);
 
     List<Order> findOpenOrders(String symbol);
-
-    List<Order> findOpenOrders();
-
-    void deleteByClientOrderId(String clientOrderId);
-
-    List<Order> findAll();
 }

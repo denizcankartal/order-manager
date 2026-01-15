@@ -21,8 +21,6 @@ public class DatabaseConfig {
 
         this.dataSource = new HikariDataSource(cfg);
         this.jdbi = Jdbi.create(dataSource);
-
-        // Here you can register mappers if needed, e.g. for enums/BigDecimal/etc
     }
 
     public DataSource getDataSource() {

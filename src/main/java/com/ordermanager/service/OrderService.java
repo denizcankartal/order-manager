@@ -151,7 +151,7 @@ public class OrderService {
         }
     }
 
-    private BigDecimal getCurrentPrice(String symbol) {
+    public BigDecimal getCurrentPrice(String symbol) {
         String endpoint = String.format("/api/v3/ticker/price?symbol=%s", symbol);
         TickerPriceResponse response = RetryUtils.executeWithRetry(
                 () -> restClient.get(endpoint, TickerPriceResponse.class),
@@ -261,10 +261,10 @@ public class OrderService {
      * @return List of open orders
      */
     public List<Order> listOpenOrders(String symbol) {
-        return stateManager.getOpenOrders();
+        return stateManager.getOpenOrders(symbol);
     }
 
-    public Order getOrder(String id, String symbol) {
+    public Order getOrder(String id) {
         Order localOrder = stateManager.getOrder(id);
         if (localOrder == null) {
             throw new IllegalStateException(String.format(

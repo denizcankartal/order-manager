@@ -49,7 +49,6 @@ public class Main {
             OrdersRepository ordersRepository = new JdbcOrdersRepository(databaseConfig.getJdbi());
 
             StateManager stateManager = new StateManager(ordersRepository);
-            stateManager.loadStateFromRepository(config.getBaseAsset() + config.getQuoteAsset());
 
             OrderService orderService = new OrderService(restClient, stateManager, config.getBaseAsset(),
                     config.getQuoteAsset());

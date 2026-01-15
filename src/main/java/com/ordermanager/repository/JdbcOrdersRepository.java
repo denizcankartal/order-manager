@@ -98,28 +98,4 @@ public class JdbcOrdersRepository implements OrdersRepository {
                 .mapTo(Order.class)
                 .list());
     }
-
-    @Override
-    public List<Order> findOpenOrders() {
-        return jdbi.withHandle(h -> h.createQuery("""
-                SELECT * FROM orders
-                WHERE status = 'NEW' OR status = 'PARTIALLY_FILLED'
-                """)
-                .mapTo(Order.class)
-                .list());
-    }
-
-    @Override
-    public void deleteByClientOrderId(String clientOrderId) {
-        jdbi.useHandle(h -> h.createUpdate("DELETE FROM orders WHERE client_order_id = :id")
-                .bind("id", clientOrderId)
-                .execute());
-    }
-
-    @Override
-    public List<Order> findAll() {
-        return jdbi.withHandle(h -> h.createQuery("SELECT * FROM orders")
-                .mapTo(Order.class)
-                .list());
-    }
 }
