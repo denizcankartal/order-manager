@@ -208,9 +208,9 @@ public class OrderService {
                     "Order not found for id=%s; it may already be closed or never existed.", id));
         }
 
-        if (order.isTerminal()) {
-            System.out.println("Order already is CANCELLED: " + id);
-            return order;
+        if (!order.isActive()) {
+            throw new IllegalStateException(
+                    String.format("Order cannot be CANCELLED because it is %s.", order.getStatus().toString()));
         }
 
         Map<String, String> params = new HashMap<>();
