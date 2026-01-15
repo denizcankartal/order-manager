@@ -6,7 +6,7 @@ CLI for managing Spot `LIMIT` orders on the Binance Spot Testnet, allows users t
 - Pre-validates orders against exchange filters (`PRICE_FILTER`, `LOT_SIZE`, `MIN_NOTIONAL`, `PERCENT_PRICE_BY_SIDE`), with auto-adjustment for tick and step sizes.
 - Implements automatic retries with exponential backoff for rate limits and network errors.
 - Syncs with Binance server time to prevent timestamp-related API errors.
-- Persisted internal state via Postgres using JdbcOrdersRepository
+- Persisted internal state using Postgres.
 
 ## Quick Start
 
@@ -34,7 +34,7 @@ BINANCE_RECV_WINDOW=10000
 USER_STREAM_KEEPALIVE_MINUTES=30
 BASE_ASSET=BTC
 QUOTE_ASSET=USDT
-DB_URL=jdbc:postgresql://db:5432/order_manager
+DB_URL=jdbc:postgresql://order-manager-db:5432/order_manager
 DB_USER=order_user
 DB_PASSWORD=order_pass
 ```
@@ -68,7 +68,7 @@ docker compose run --rm order-manager list --symbol BTCUSDT
 
 # To reset the local order state, bring the volume down
 docker compose down -v
-
+jdbc:postgresql://db:5432/order_managerjdbc:postgresql://db:5432/order_manager
 # To stop/reset the database
 docker compose -f docker-compose.db.yml down -v
 ```
@@ -99,6 +99,7 @@ USDT       10000.00000000       0.00000000
 
 ```bash
 $ docker compose run --rm order-manager add --side BUY --price 90000 --qty 0.0001 --client-id my-order
+
 Order placed: id=1309715 clientId=my-order side=BUY 0.0001 BTCUSDT @ 90000 status=NEW
 {
   "orderId": 1309715,
@@ -113,6 +114,7 @@ User data stream started. Press Ctrl+C to stop.
 
 ```bash
 $ docker compose run --rm order-manager list
+
 ORDER_ID     CLIENT_ID          SIDE   SYMBOL       PRICE          ORIG_QTY       EXEC_QTY       STATUS     UPDATE_TIME       
 ----------------------------------------------------------------------------------------------------------
 1309715      my-order           BUY    BTCUSDT      90000          0.0001         0.00000000     NEW        2026-01-15 01:22:46
@@ -123,6 +125,7 @@ ORDER_ID     CLIENT_ID          SIDE   SYMBOL       PRICE          ORIG_QTY     
 
 ```bash
 $ docker compose run --rm order-manager show --id my-order
+
 {
   "orderId": 1309715,
   "clientOrderId": "my-order",
@@ -142,6 +145,7 @@ $ docker compose run --rm order-manager show --id my-order
 
 ```bash
 $ docker compose run --rm order-manager cancel --id my-order
+
 {
   "orderId": 1309715,
   "clientOrderId": "my-order",
@@ -159,6 +163,19 @@ Order already is CANCELLED: my-order
 }
 ```
 
+`price`
+- Log ticker price continously.
+
+```bash
+$ docker compose run --rm order-manager price
+
+Watching BTCUSDT price every 10 seconds. Press Ctrl+C to stop.
+1768451950914 - 96239.71000000
+1768451961252 - 96276.10000000
+1768451971496 - 96271.90000000
+1768451981834 - 96258.77000000
+.....
+```
 Global flag:
 
 - --verbose enables sanitized HTTP request/response logging redacting API key and signatures.
@@ -184,7 +201,7 @@ python mock_binance.py
 ```
 
 - Change BINANCE_BASE_URL in `.env` to http://localhost:8080
-- run order-manager command to test how order manager handles rate limits and network errors by retrying and exponentially backing off.
+- run order-manager command to test how order manager handles rate limits and network errors with exponential retries that eventually backoff.
 
 ```bash
 $ docker compose run --rm order-manager add --side BUY --price 70000 --qty 0.001
@@ -215,12 +232,8 @@ Order placed: id=1234567 clientId=cli-1768437591259-b9363185 side=BUY 0.001 BTCU
 User data stream started. Press Ctrl+C to stop.
 ```
 
-## Decisions
+## Other Notes
 
--   **Custom API Client:** A custom client was built using OkHttp to demonstrate an understanding of HTTP communication, request signing, and error handling, while also minimizing external dependencies.
--   **BigDecimal for Financial Calculations:** All prices, quantities, and notional values use `BigDecimal` to avoid floating-point inaccuracies, ensuring correctness in all financial operations.
-
-## Limitations & Assumptions
-
--   **Not for High-Frequency Trading (HFT):** The CLI is designed primarly for human traders. It is not fully optimized for ultra-low latency demands.
--   **Network Stability:** A stable internet connection is assumed.
+- Custom REST and WebSocket clients were built to demonstrate an understanding of HTTP communication, request signing, and error handling, while also minimizing external dependencies.
+- All prices, quantities, and notional values use `BigDecimal` to avoid floating-point inaccuracies, ensuring correctness in all financial operations.
+- The CLI is designed primarly for human traders. To be able to use in HFT environments, we need to optimize enormously for ultra-low latency demands.
