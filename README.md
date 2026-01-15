@@ -59,8 +59,6 @@ docker compose -f docker-compose.db.yml down -v
 ```
 ### Running the Application
 
-#### Option 1: Running with Docker Compose
-
 ```bash
 # Build the Docker image
 docker compose build
@@ -75,23 +73,6 @@ docker compose down -v
 docker compose -f docker-compose.db.yml down -v
 ```
 
-If you override DB settings, make sure `DB_URL` points at `order-manager-db` when running in Docker:
-
-```bash
-export DB_URL=jdbc:postgresql://order-manager-db:5432/order_manager
-export DB_USER=order_user
-export DB_PASSWORD=order_pass
-```
-
-#### Option 2: Running with Java + Maven
-
-```bash
-mvn clean package
-
-java -jar target/order-manager-1.0.0.jar balances
-java -jar target/order-manager-1.0.0.jar show --id 123456
-```
-
 ## Example session
 
 Note: The primary trading symbol (e.g., `BTCUSDT`) is configured via the `BASE_ASSET` and `QUOTE_ASSET` environment variables.
@@ -101,7 +82,7 @@ Note: The primary trading symbol (e.g., `BTCUSDT`) is configured via the `BASE_A
 - Prints free/locked balances for BASE_ASSET and QUOTE_ASSET.
 
 ```bash
-$ java -jar target/order-manager-1.0.0.jar balances
+$ docker compose run --rm order-manager balances
 
 ASSET      FREE                 LOCKED
 ----------------------------------------------
@@ -117,7 +98,7 @@ USDT       10000.00000000       0.00000000
 - If the order is not terminal, it starts WebSocket tracking and persists execution updates until the order is FILLED or CANCELED.
 
 ```bash
-$ java -jar target/order-manager-1.0.0.jar add --side BUY --price 90000 --qty 0.0001 --client-id my-order
+$ docker compose run --rm order-manager add --side BUY --price 90000 --qty 0.0001 --client-id my-order
 Order placed: id=1309715 clientId=my-order side=BUY 0.0001 BTCUSDT @ 90000 status=NEW
 {
   "orderId": 1309715,
@@ -131,7 +112,7 @@ User data stream started. Press Ctrl+C to stop.
 - List all open orders from local
 
 ```bash
-$ java -jar target/order-manager-1.0.0.jar list
+$ docker compose run --rm order-manager list
 ORDER_ID     CLIENT_ID          SIDE   SYMBOL       PRICE          ORIG_QTY       EXEC_QTY       STATUS     UPDATE_TIME       
 ----------------------------------------------------------------------------------------------------------
 1309715      my-order           BUY    BTCUSDT      90000          0.0001         0.00000000     NEW        2026-01-15 01:22:46
@@ -141,7 +122,7 @@ ORDER_ID     CLIENT_ID          SIDE   SYMBOL       PRICE          ORIG_QTY     
 - Prints a JSON view of a single order from local
 
 ```bash
-$ java -jar target/order-manager-1.0.0.jar show --id my-order
+$ docker compose run --rm order-manager show --id my-order
 {
   "orderId": 1309715,
   "clientOrderId": "my-order",
@@ -160,7 +141,7 @@ $ java -jar target/order-manager-1.0.0.jar show --id my-order
 - Idempotent: if already terminal, returns the existing state.
 
 ```bash
-$ java -jar target/order-manager-1.0.0.jar cancel --id my-order
+$ docker compose run --rm order-manager cancel --id my-order
 {
   "orderId": 1309715,
   "clientOrderId": "my-order",
@@ -169,7 +150,7 @@ $ java -jar target/order-manager-1.0.0.jar cancel --id my-order
 ```
 
 ```bash
-$ java -jar target/order-manager-1.0.0.jar cancel --id my-order
+$ docker compose run --rm order-manager cancel --id my-order
 Order already is CANCELLED: my-order
 {
   "orderId": 1309715,
@@ -206,7 +187,7 @@ python mock_binance.py
 - run order-manager command to test how order manager handles rate limits and network errors by retrying and exponentially backing off.
 
 ```bash
-$ java -jar target/order-manager-1.0.0.jar add --side BUY --price 70000 --qty 0.001
+$ docker compose run --rm order-manager add --side BUY --price 70000 --qty 0.001
 
 2026-01-15 01:39:43.966 [main] WARN  com.ordermanager.Main - Retriable error on attempt 1/5 for Initial Time Synchronization: Server time sync failed. Retrying in 1000ms...
 2026-01-15 01:39:44.977 [main] WARN  com.ordermanager.Main - Retriable error on attempt 2/5 for Initial Time Synchronization: Server time sync failed. Retrying in 2000ms...
