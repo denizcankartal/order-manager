@@ -209,8 +209,8 @@ public class OrderService {
         }
 
         if (!order.isActive()) {
-            throw new IllegalStateException(
-                    String.format("Order cannot be CANCELLED because it is %s.", order.getStatus().toString()));
+            System.out.println(String.format("Order cannot be CANCELLED because it is %s.", order.getStatus()));
+            return order;
         }
 
         Map<String, String> params = new HashMap<>();

@@ -31,7 +31,6 @@ BINANCE_BASE_URL=https://testnet.binance.vision
 # BINANCE_BASE_URL=http://localhost:8080 # uncomment for mock server
 BINANCE_WS_BASE_URL=wss://ws-api.testnet.binance.vision/ws-api/v3
 BINANCE_RECV_WINDOW=10000
-USER_STREAM_KEEPALIVE_MINUTES=30
 BASE_ASSET=BTC
 QUOTE_ASSET=USDT
 DB_URL=jdbc:postgresql://order-manager-db:5432/order_manager
