@@ -29,7 +29,6 @@ public class UserDataStreamService {
 
     private static final Logger logger = LoggerFactory.getLogger(UserDataStreamService.class);
     private final StateManager stateManager;
-    private final AsyncStatePersister persister;
     private final String wsBaseUrl;
     private final String apiKey;
     private final String apiSecret;
@@ -50,13 +49,11 @@ public class UserDataStreamService {
     private volatile Runnable onTrackingCompleted;
 
     public UserDataStreamService(StateManager stateManager,
-            AsyncStatePersister persister,
             String wsBaseUrl,
             String apiKey,
             String apiSecret,
             long recvWindow) {
         this.stateManager = stateManager;
-        this.persister = persister;
         this.wsBaseUrl = wsBaseUrl;
         this.apiKey = apiKey;
         this.apiSecret = apiSecret;
@@ -264,7 +261,6 @@ public class UserDataStreamService {
 
         if (stateManager.getOrderByClientId(clientOrderId) != null) {
             stateManager.updateOrder(order);
-            persister.submitWrite(stateManager.getStateSnapshot());
             if (order.isTerminal()) {
                 logger.debug("Archived terminal order: {}", order.getClientOrderId());
                 stop();

@@ -33,7 +33,6 @@ public class OrderService {
 
     private final BinanceRestClient restClient;
     private final StateManager stateManager;
-    private final AsyncStatePersister persister;
     private final String baseAsset;
     private final String quoteAsset;
     private SymbolInfo symbolInfo;
@@ -41,12 +40,10 @@ public class OrderService {
 
     public OrderService(BinanceRestClient restClient,
             StateManager stateManager,
-            AsyncStatePersister persister,
             String baseAsset,
             String quoteAsset) {
         this.restClient = restClient;
         this.stateManager = stateManager;
-        this.persister = persister;
         this.baseAsset = baseAsset;
         this.quoteAsset = quoteAsset;
         this.symbol = baseAsset + quoteAsset;
@@ -124,7 +121,6 @@ public class OrderService {
             order.setUpdateTime(System.currentTimeMillis());
 
             stateManager.addOrder(order);
-            persister.submitWrite(stateManager.getStateSnapshot());
 
             return new PlaceOrderResult(order, validation.getWarnings());
 
@@ -238,7 +234,6 @@ public class OrderService {
             order.setUpdateTime(System.currentTimeMillis());
 
             stateManager.updateOrder(order);
-            persister.submitWrite(stateManager.getStateSnapshot());
 
             return order;
 
@@ -266,11 +261,7 @@ public class OrderService {
      * @return List of open orders
      */
     public List<Order> listOpenOrders(String symbol) {
-        if (symbol != null && !symbol.isEmpty()) {
-            return stateManager.getOpenOrders(symbol);
-        } else {
-            return stateManager.getOpenOrders();
-        }
+        return stateManager.getOpenOrders();
     }
 
     public Order getOrder(String id, String symbol) {

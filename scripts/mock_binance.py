@@ -48,7 +48,7 @@ def mock_exchange_info():
 @app.route('/api/v3/ticker/price', methods=['GET'])
 def mock_ticker():
     attempt = get_attempt('ticker')
-    if attempt == 4:
+    if attempt < 4:
         print(f"[TICKER] Attempt {attempt}: Simulating 429 Rate Limit")
         return jsonify({"code": -1003, "msg": "Too many requests"}), 429
     

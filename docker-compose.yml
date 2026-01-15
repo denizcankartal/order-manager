@@ -4,10 +4,19 @@ services:
     image: order-manager:local
     env_file:
       - .env
+    environment:
+      DB_URL: ${DB_URL:-jdbc:postgresql://order-manager-db:5432/order_manager}
+      DB_USER: ${DB_USER:-order_user}
+      DB_PASSWORD: ${DB_PASSWORD:-order_pass}
+    networks:
+      - order-manager-net
     volumes:
       - order-manager-state:/home/app/.order-manager
-    command: ["--help"]
+    command: [ "--help" ]
 
 volumes:
   order-manager-state:
 
+networks:
+  order-manager-net:
+    external: true

@@ -3,10 +3,10 @@ package com.ordermanager;
 import com.ordermanager.cli.OrderManagerCLI;
 import com.ordermanager.client.BinanceRestClient;
 import com.ordermanager.config.AppConfig;
+import com.ordermanager.config.DatabaseConfig;
 import com.ordermanager.exception.ConfigurationException;
-import com.ordermanager.model.Order;
-import com.ordermanager.persistence.StatePersistence;
-import com.ordermanager.service.AsyncStatePersister;
+import com.ordermanager.repository.JdbcOrdersRepository;
+import com.ordermanager.repository.OrdersRepository;
 import com.ordermanager.service.BalanceService;
 import com.ordermanager.service.OrderService;
 import com.ordermanager.service.StateManager;
@@ -21,15 +21,12 @@ import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 
 import java.util.Arrays;
-import java.util.Map;
 
 public class Main {
 
     private static final Logger logger = LoggerFactory.getLogger(Main.class);
 
     public static void main(String[] args) {
-        StatePersistence persistence = null;
-        AsyncStatePersister statePersister = null;
         BinanceRestClient restClient = null;
         UserDataStreamService userDataStreamService = null;
 
@@ -48,20 +45,17 @@ public class Main {
 
             BalanceService balanceService = new BalanceService(restClient);
 
-            persistence = new StatePersistence();
-            StateManager stateManager = new StateManager();
+            DatabaseConfig databaseConfig = new DatabaseConfig(config);
+            OrdersRepository ordersRepository = new JdbcOrdersRepository(databaseConfig.getJdbi());
 
-            Map<String, Order> savedOrders = persistence.load();
-            stateManager.loadState(savedOrders);
+            StateManager stateManager = new StateManager(ordersRepository);
+            stateManager.loadStateFromRepository(config.getBaseAsset() + config.getQuoteAsset());
 
-            statePersister = new AsyncStatePersister(persistence);
-            statePersister.start();
+            OrderService orderService = new OrderService(restClient, stateManager, config.getBaseAsset(),
+                    config.getQuoteAsset());
 
-            OrderService orderService = new OrderService(restClient, stateManager, statePersister,
-                    config.getBaseAsset(), config.getQuoteAsset());
-
-            userDataStreamService = new UserDataStreamService(stateManager, statePersister,
-                    config.getWsBaseUrl(), config.getApiKey(), config.getApiSecret(), config.getRecvWindow());
+            userDataStreamService = new UserDataStreamService(stateManager, config.getWsBaseUrl(), config.getApiKey(),
+                    config.getApiSecret(), config.getRecvWindow());
 
             int exitCode = new CommandLine(new OrderManagerCLI(balanceService, orderService,
                     userDataStreamService, config.getBaseAsset(), config.getQuoteAsset()))
@@ -70,7 +64,6 @@ public class Main {
             logger.debug("Command completed with exit code: {}", exitCode);
             userDataStreamService.stop();
 
-            statePersister.shutdown(5);
             restClient.shutdown();
 
             System.exit(exitCode);
@@ -82,13 +75,6 @@ public class Main {
         } catch (Exception e) {
             logger.error("Fatal error", e);
 
-            if (statePersister != null) {
-                try {
-                    statePersister.shutdown(5);
-                } catch (Exception cleanupError) {
-                    logger.error("Error during state persister cleanup", cleanupError);
-                }
-            }
             if (userDataStreamService != null) {
                 try {
                     userDataStreamService.stop();

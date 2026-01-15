@@ -27,19 +27,17 @@ class OrderServiceTest {
 
         private BinanceRestClient restClient;
         private StateManager stateManager;
-        private AsyncStatePersister persister;
         private OrderService service;
 
         @BeforeEach
         void setUp() {
                 restClient = mock(BinanceRestClient.class);
                 stateManager = mock(StateManager.class);
-                persister = mock(AsyncStatePersister.class);
                 ExchangeInfoResponse response = new ExchangeInfoResponse();
                 response.setSymbols(List.of(buildSymbolInfo()));
                 when(restClient.get(eq("/api/v3/exchangeInfo?symbol=BTCUSDT"), eq(ExchangeInfoResponse.class)))
                                 .thenReturn(response);
-                service = new OrderService(restClient, stateManager, persister, "BTC", "USDT");
+                service = new OrderService(restClient, stateManager, "BTC", "USDT");
         }
 
         @Test
@@ -61,7 +59,6 @@ class OrderServiceTest {
                 assertFalse(result.getWarnings().isEmpty(), "Adjusted price should produce a warning");
 
                 verify(stateManager, times(1)).addOrder(any(Order.class));
-                verify(persister, atLeastOnce()).submitWrite(anyMap());
         }
 
         @Test

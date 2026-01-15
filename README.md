@@ -1,41 +1,63 @@
 # Order Manager CLI
 
-![Java](https://img.shields.io/badge/Java-21-blue.svg)
-![Maven](https://img.shields.io/badge/Maven-3.8+-red.svg)
-![Docker](https://img.shields.io/badge/Docker-Supported-blue.svg)
-![License](https://img.shields.io/badge/License-MIT-green.svg)
-
 CLI for managing Spot `LIMIT` orders on the Binance Spot Testnet, allows users to place, cancel, list, and track orders.
 
-## Features
+- A WebSocket connection for live order updates when placing an order.
+- Pre-validates orders against exchange filters (`PRICE_FILTER`, `LOT_SIZE`, `MIN_NOTIONAL`, `PERCENT_PRICE_BY_SIDE`), with auto-adjustment for tick and step sizes.
+- Implements automatic retries with exponential backoff for rate limits and network errors.
+- Syncs with Binance server time to prevent timestamp-related API errors.
+- Persisted internal state via Postgres using JdbcOrdersRepository
 
-- **Full Order Lifecycle Management**: `add`, `cancel`, `list`, and `show` commands.
-- **Real-time State Tracking**: An optional persistent WebSocket connection for live order updates.
-- **Robust State Management**: Maintains a local state cache with asynchronous persistence and reconciles with the exchange on startup to ensure data consistency.
-- **Intelligent Order Validation**: Pre-validates orders against exchange filters (`PRICE_FILTER`, `LOT_SIZE`, `MIN_NOTIONAL`, etc.), with auto-adjustment for tick and step sizes.
-- **Resilient API Communication**: Features automatic retries with exponential backoff for rate limits and network errors.
-- **Clock Drift Protection**: Proactively syncs with Binance server time to prevent timestamp-related API errors.
-
-## Getting Started
+## Quick Start
 
 ### Prerequisites
 
 *   Java 21
 *   Maven 3.8+
-*   Docker (optional, for containerized execution)
+*   Docker (for containerized execution)
 *   Binance Testnet API credentials, which can be obtained from [here](https://testnet.binance.vision/).
+*   Python3, Flask (for mocking binance server)
 
-### Configure API Credentials
-
-Copy the environment file template and add your Binance Testnet API key and secret.
+### Environment Variables
 
 ```bash
 cp .env.example .env
 ```
 
-### Running the Application
+```bash
+BINANCE_API_KEY=testnet_api_key
+BINANCE_API_SECRET=testnet_api_secret
+BINANCE_BASE_URL=https://testnet.binance.vision
+# BINANCE_BASE_URL=http://localhost:8080 # uncomment for mock server
+BINANCE_WS_BASE_URL=wss://ws-api.testnet.binance.vision/ws-api/v3
+BINANCE_RECV_WINDOW=10000
+USER_STREAM_KEEPALIVE_MINUTES=30
+BASE_ASSET=BTC
+QUOTE_ASSET=USDT
+DB_URL=jdbc:postgresql://db:5432/order_manager
+DB_USER=order_user
+DB_PASSWORD=order_pass
+```
 
-One can run the application using either Docker Compose or by building the executable JAR with Maven.
+### Database Setup
+
+```bash
+# (one-time) create shared network
+docker network create order-manager-net
+
+# start postgres in the background
+docker compose -f docker-compose.db.yml up -d
+
+# wait until databse is healthy
+docker compose -f docker-compose.db.yml ps
+
+# apply schema first time
+docker exec -i order-manager-db psql -U order_user -d order_manager < src/main/resources/db/migration/v1_create_orders.sql
+
+# wipe the data if you need to
+docker compose -f docker-compose.db.yml down -v
+```
+### Running the Application
 
 #### Option 1: Running with Docker Compose
 
@@ -48,30 +70,35 @@ docker compose run --rm order-manager list --symbol BTCUSDT
 
 # To reset the local order state, bring the volume down
 docker compose down -v
+
+# To stop/reset the database
+docker compose -f docker-compose.db.yml down -v
 ```
 
-State is persisted in a named Docker volume `order-manager-state`, which maps to `/home/app/.order-manager` inside the container.
+If you override DB settings, make sure `DB_URL` points at `order-manager-db` when running in Docker:
+
+```bash
+export DB_URL=jdbc:postgresql://order-manager-db:5432/order_manager
+export DB_USER=order_user
+export DB_PASSWORD=order_pass
+```
 
 #### Option 2: Running with Java + Maven
 
-Build the project from source and run the JAR directly.
-
 ```bash
-# Compile, run tests, and package the executable JAR
 mvn clean package
 
-# Run any command
 java -jar target/order-manager-1.0.0.jar balances
-java -jar target/order-manager-1.0.0.jar --help
+java -jar target/order-manager-1.0.0.jar show --id 123456
 ```
-
-State is persisted in the `~/.order-manager/` directory in your home folder.
 
 ## Example session
 
 Note: The primary trading symbol (e.g., `BTCUSDT`) is configured via the `BASE_ASSET` and `QUOTE_ASSET` environment variables.
 
-#### `balances`: Check account balances
+`balances`
+
+- Prints free/locked balances for BASE_ASSET and QUOTE_ASSET.
 
 ```bash
 $ java -jar target/order-manager-1.0.0.jar balances
@@ -82,124 +109,137 @@ BTC        1.50000000           0.00000000
 USDT       10000.00000000       0.00000000
 ```
 
-#### `add`: Place a new LIMIT order
+`add`
+
+- Places a LIMIT order for BASE_ASSET+QUOTE_ASSET.
+- Validates against PRICE_FILTER, LOT_SIZE, MIN_NOTIONAL, and PERCENT_PRICE_BY_SIDE.
+- Auto‑adjusts price/qty down to tick/step size when applicable and prints warnings.
+- If the order is not terminal, it starts WebSocket tracking and persists execution updates until the order is FILLED or CANCELED.
 
 ```bash
-$ java -jar target/order-manager-1.0.0.jar add --side BUY --price 90000.00 --qty 0.001
-
+$ java -jar target/order-manager-1.0.0.jar add --side BUY --price 90000 --qty 0.0001 --client-id my-order
+Order placed: id=1309715 clientId=my-order side=BUY 0.0001 BTCUSDT @ 90000 status=NEW
 {
-  "orderId": 123456,
-  "clientOrderId": "cli-1736507400000",
-  "status": "NEW"
+  "orderId": 1309715,
+  "clientOrderId": "my-order",
+  "status": "NEW",
 }
+User data stream started. Press Ctrl+C to stop.
 ```
 
-#### `list`: List all open orders from local state
+`list`
+- List all open orders from local
 
 ```bash
 $ java -jar target/order-manager-1.0.0.jar list
-
-ORDER_ID  CLIENT_ID          SIDE  SYMBOL   PRICE     ORIG_QTY  EXEC_QTY  STATUS  UPDATE_TIME
------------------------------------------------------------------------------------------------------------------------
-123456    cli-1736507400000  BUY   BTCUSDT  90000.00  0.001     0.000000  NEW     2026-01-10 10:30:00
+ORDER_ID     CLIENT_ID          SIDE   SYMBOL       PRICE          ORIG_QTY       EXEC_QTY       STATUS     UPDATE_TIME       
+----------------------------------------------------------------------------------------------------------
+1309715      my-order           BUY    BTCUSDT      90000          0.0001         0.00000000     NEW        2026-01-15 01:22:46
 ```
 
-#### `show`: Fetch detailed information for a single order from the exchange
+`show` 
+- Prints a JSON view of a single order from local
 
 ```bash
-$ java -jar target/order-manager-1.0.0.jar show --id 123456
-
+$ java -jar target/order-manager-1.0.0.jar show --id my-order
 {
-  "orderId": 123456,
-  "clientOrderId": "cli-1736507400000",
+  "orderId": 1309715,
+  "clientOrderId": "my-order",
   "symbol": "BTCUSDT",
   "side": "BUY",
-  "price": "65000.00",
-  "origQty": "0.001",
-  "executedQty": "0.000000",
+  "price": "90000",
+  "origQty": "0.0001",
+  "executedQty": "0E-8",
   "status": "NEW",
-  "updateTime": 1736507400000
+  "updateTime": 1768436566948
 }
 ```
 
-#### `cancel`: Cancel an open order
+`cancel`
+- Cancels an order by exchange orderId or client order ID.
+- Idempotent: if already terminal, returns the existing state.
 
 ```bash
-$ java -jar target/order-manager-1.0.0.jar cancel --id 123456
-
+$ java -jar target/order-manager-1.0.0.jar cancel --id my-order
 {
-  "orderId": 123456,
-  "clientOrderId": "cli-1736507400000",
-  "status": "CANCELED"
+  "orderId": 1309715,
+  "clientOrderId": "my-order",
+  "status": "CANCELED",
 }
 ```
 
-#### `stream`: Subscribe to real-time account and order updates
-
-This command opens a persistent WebSocket to receive real-time `executionReport` events.
-
 ```bash
-$ java -jar target/order-manager-1.0.0.jar stream
-
-User data stream started. Press Ctrl+C to stop.
-...executionReport events will be logged here in real-time...
+$ java -jar target/order-manager-1.0.0.jar cancel --id my-order
+Order already is CANCELLED: my-order
+{
+  "orderId": 1309715,
+  "clientOrderId": "my-order",
+  "status": "CANCELED",
+}
 ```
 
-## Design and Architecture
+Global flag:
 
-### System Overview
+- --verbose enables sanitized HTTP request/response logging redacting API key and signatures.
 
--   **CLI (`com.ordermanager.cli`)**: Parses commands, validates user inputs, and formats console output. It acts as the entry point and controller layer.
--   **Service (`com.ordermanager.service`)**: Contains the core business logic, orchestrating API calls, state management, and order validation.
--   **Client (`com.ordermanager.client`)**: A custom HTTP/WebSocket client layer responsible for all communication with the Binance API, including request signing and error handling.
--   **Persistence (`com.ordermanager.persistence`)**: Handles the serialization and deserialization of order data to and from the local filesystem (`orders.json`).
+## Testing
 
-### State Management & Reconciliation
+### Automated Tests
+```bash
+mvn test
+```
 
-The application maintains a local snapshot of orders to provide instant feedback (`list` command), enable idempotent UX for repeated `cancel` calls, and reduce reliance on API calls.
+### Local Mock Binance Server
+```bash
+cd scripts
 
--   **In-Memory Storage:** Orders are held in a `ConcurrentHashMap` within the `StateManager` for fast, thread-safe lookups by either `clientOrderId` or `orderId`.
--   **Asynchronous Persistence:** To avoid blocking CLI operations, state is written to disk on a dedicated background thread managed by `AsyncStatePersister`. This ensures a responsive user experience while guaranteeing eventual persistence.
--   **Startup Reconciliation:** On startup, the application fetches all open orders from the exchange (`GET /api/v3/openOrders`). It then reconciles this information with the state loaded from `orders.json`, updating statuses for any orders that were modified or closed while the CLI was offline.
--   **Terminal Order Archiving:** When an order becomes terminal (`FILLED`, `CANCELED`, etc.), the CLI stops tracking it as "open", but retains it in the local state as a lightweight history record (bounded by retention settings).
+python3 -m venv venv
 
-### Order Validation & Filters
+source venv/bin/activate
 
-To prevent invalid requests, order parameters are pre-validated against the symbol's trading rules (`GET /api/v3/exchangeInfo`).
+pip install flask
 
--   **Filters Validated:** `PRICE_FILTER`, `LOT_SIZE`, `MIN_NOTIONAL`, and `PERCENT_PRICE_BY_SIDE`.
--   **Auto-Adjustment:** For `PRICE_FILTER` (tick size) and `LOT_SIZE` (step size), the application automatically rounds the user's input down to a valid value and notifies the user with a warning.
--   **Fail-Fast:** For critical filters like `MIN_NOTIONAL`, the application fails immediately with a clear error message, as these cannot be safely auto-adjusted.
+python mock_binance.py
+```
 
-### Real-time Updates
+- Change BINANCE_BASE_URL in `.env` to http://localhost:8080
+- run order-manager command to test how order manager handles rate limits and network errors by retrying and exponentially backing off.
 
-The `stream` command implements the User Data Stream for real-time updates.
+```bash
+$ java -jar target/order-manager-1.0.0.jar add --side BUY --price 70000 --qty 0.001
 
--   **Connection & Authentication:** The `UserDataStreamService` establishes and maintains an authenticated, persistent WebSocket connection.
--   **Live State Updates:** Upon receiving an `executionReport` event, the service immediately updates the order's status and quantities in the `StateManager` and queues the new state for persistence.
+2026-01-15 01:39:43.966 [main] WARN  com.ordermanager.Main - Retriable error on attempt 1/5 for Initial Time Synchronization: Server time sync failed. Retrying in 1000ms...
+2026-01-15 01:39:44.977 [main] WARN  com.ordermanager.Main - Retriable error on attempt 2/5 for Initial Time Synchronization: Server time sync failed. Retrying in 2000ms...
+2026-01-15 01:39:46.983 [main] WARN  com.ordermanager.Main - Retriable error on attempt 3/5 for Initial Time Synchronization: Server time sync failed. Retrying in 4000ms...
+2026-01-15 01:39:51.273 [main] ERROR c.o.client.BinanceRestClient - Binance API error: code=-1003, msg=Too many requests
+2026-01-15 01:39:51.273 [main] WARN  c.ordermanager.service.OrderService - Retriable error on attempt 1/5 for fetch ticker price: Too many requests. Retrying in 1000ms...
+2026-01-15 01:39:52.279 [main] ERROR c.o.client.BinanceRestClient - Binance API error: code=-1003, msg=Too many requests
+2026-01-15 01:39:52.280 [main] WARN  c.ordermanager.service.OrderService - Retriable error on attempt 2/5 for fetch ticker price: Too many requests. Retrying in 2000ms...
+2026-01-15 01:39:54.284 [main] ERROR c.o.client.BinanceRestClient - Binance API error: code=-1003, msg=Too many requests
+2026-01-15 01:39:54.284 [main] WARN  c.ordermanager.service.OrderService - Retriable error on attempt 3/5 for fetch ticker price: Too many requests. Retrying in 4000ms...
+2026-01-15 01:39:58.379 [main] ERROR c.o.client.BinanceRestClient - Binance API error: code=-1003, msg=IP Banned
+2026-01-15 01:39:58.379 [main] WARN  c.ordermanager.service.OrderService - Retriable error on attempt 1/5 for place order: IP Banned. Retrying in 1000ms...
+2026-01-15 01:39:59.388 [main] ERROR c.o.client.BinanceRestClient - Binance API error: code=-1003, msg=IP Banned
+2026-01-15 01:39:59.389 [main] WARN  c.ordermanager.service.OrderService - Retriable error on attempt 2/5 for place order: IP Banned. Retrying in 2000ms...
+2026-01-15 01:40:01.394 [main] ERROR c.o.client.BinanceRestClient - Binance API error: code=-1003, msg=IP Banned
+2026-01-15 01:40:01.394 [main] WARN  c.ordermanager.service.OrderService - Retriable error on attempt 3/5 for place order: IP Banned. Retrying in 4000ms...
+2026-01-15 01:40:05.406 [main] ERROR c.o.client.BinanceRestClient - Binance API error: code=-1003, msg=IP Banned
+2026-01-15 01:40:05.408 [main] WARN  c.ordermanager.service.OrderService - Retriable error on attempt 4/5 for place order: IP Banned. Retrying in 8000ms...
+Order placed: id=1234567 clientId=cli-1768437591259-b9363185 side=BUY 0.001 BTCUSDT @ 70000 status=NEW
+{
+  "orderId": 1234567,
+  "clientOrderId": "cli-1768437591259-b9363185",
+  "status": "NEW",
+}
+User data stream started. Press Ctrl+C to stop.
+```
 
-### Reliability and Error Handling
+## Decisions
 
--   **Retry Mechanism:** Critical API calls are wrapped in a generic `RetryUtils` class. It catches retriable network errors (HTTP `429`, `418`, `5xx`) and retries the operation with an exponential backoff delay.
--   **Clock Drift Handling:** The application fetches the Binance server time via `TimeSync` to calculate a local clock offset. 
-
-### Key Architectural Decisions
-
--   **Custom API Client:** A custom client was built using OkHttp to demonstrate a understanding of HTTP communication, request signing, and error handling, while also minimizing external dependencies.
+-   **Custom API Client:** A custom client was built using OkHttp to demonstrate an understanding of HTTP communication, request signing, and error handling, while also minimizing external dependencies.
 -   **BigDecimal for Financial Calculations:** All prices, quantities, and notional values use `BigDecimal` to avoid floating-point inaccuracies, ensuring correctness in all financial operations.
--   **Asynchronous Persistence:** Decoupling file I/O from the main application thread to maintain a responsive CLI experience.
 
 ## Limitations & Assumptions
 
--   **Single Trading Pair:** The application is designed to trade a single symbol (e.g., `BTCUSDT`) per session, configured via environment variables.
 -   **Not for High-Frequency Trading (HFT):** The CLI is designed primarly for human traders. It is not fully optimized for ultra-low latency demands.
 -   **Network Stability:** A stable internet connection is assumed.
-
-## State retention configuration
-
-The local `orders.json` includes both open and terminal orders. Open orders are used for `list`; terminal orders are retained as a small local history and for idempotent `cancel` UX.
-
-Retention is controlled via optional env vars:
-
-- `ORDER_STATE_MAX_TERMINAL_ORDERS` (default: `1000`): maximum number of terminal orders to keep locally.
-- `ORDER_STATE_TERMINAL_TTL_DAYS` (default: `30`): terminal orders older than this are pruned.
